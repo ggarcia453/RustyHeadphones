@@ -84,11 +84,11 @@ fn queue(handler: &mut operations::Handler,  s : Vec<&str>, stdout: & mut Shared
     Ok(())
 }
 
-fn loop_handle(handler: &mut operations::Handler, s : &str){
+fn loop_handle(handler: &mut operations::Handler, s : &str, stdout: & mut SharedWriter){
     match s {
-        "song" | "Song" => {handler.islooping = operations::Loop::LoopSong;},
-        "queue" | "Queue" => {handler.islooping = operations::Loop::LoopQueue;},
-        "cancel" | "Cancel" => {handler.islooping = operations::Loop::NoLoop;}
+        "song" | "Song" => {handler.islooping = operations::Loop::LoopSong; let _ =  writeln!(stdout, "Now Looping Current Song");},
+        "queue" | "Queue" => {handler.islooping = operations::Loop::LoopQueue;let _ = writeln!(stdout, "Now Looping Current Queue");},
+        "cancel" | "Cancel" => {handler.islooping = operations::Loop::NoLoop;let _ = writeln!(stdout, "No longer looping");}
         _ => ()
     }
 }
@@ -117,7 +117,7 @@ async fn main() -> Result<(), ReadlineError>{
                         Some("skip") => sink.skip_one(),
                         Some("queue") => queue(& mut handler, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout).unwrap(),
                         Some("volume") => volume_control(&sink, s.into_iter().nth(1), & mut stdout),
-                        Some("loop") => loop_handle(& mut handler, s.get(1).unwrap().to_owned()),
+                        Some("loop") => loop_handle(& mut handler, s.get(1).unwrap().to_owned(), & mut stdout),
                         Some("detach") => {sink.sleep_until_end(); break;},
                         Some ("") => (),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?
