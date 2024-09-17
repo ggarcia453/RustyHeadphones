@@ -67,7 +67,7 @@ fn queue_file(handler: &mut operations::Handler,  s: String, stdout : & mut Shar
         let _ = writeln!(stdout, "Queued {}", s.to_owned());
     }
     else{
-        writeln!(stdout, "Could not queue file").unwrap();
+        writeln!(stdout, "Could not find or queue {}", &path).unwrap();
     }
 }
 
@@ -128,7 +128,6 @@ fn volume_control(sink : &Sink, s: Vec<&str>, stdout : & mut SharedWriter){
 }
 
 fn queue(handler: &mut operations::Handler,  s : Vec<&str>, stdout: & mut SharedWriter) {
-    let _testfile: String = std::env::var("TESTFILE").expect("TESTFILE must be set.");
     if (s.len() > 0) & (s.clone().into_iter().nth(0) != Some("")) {
         if s.clone().into_iter().nth(0).unwrap()== "view" {
             if handler.cur_song.clone().is_some(){
