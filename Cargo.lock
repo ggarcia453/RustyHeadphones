@@ -55,18 +55,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
-name = "audioplayer"
-version = "0.2.0"
-dependencies = [
- "dotenv",
- "rand",
- "rodio",
- "rustyline-async",
- "tokio",
- "walkdir",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,6 +887,18 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "rustyheadphones"
+version = "0.2.0"
+dependencies = [
+ "dotenv",
+ "rand",
+ "rodio",
+ "rustyline-async",
+ "tokio",
+ "walkdir",
 ]
 
 [[package]]
