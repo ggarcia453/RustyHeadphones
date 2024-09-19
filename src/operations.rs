@@ -9,4 +9,5 @@ pub struct Handler{
     pub islooping: Loop,
     pub cur_song : Option<String>,
     pub queue : Vec<String>,
+    pub stack : Vec<String>,
 }

@@ -24,14 +24,20 @@ fn play_song(sink : &Sink, s: String){
     sink.append(source);
 }
 
-fn music_idle (sink : &Sink, handler: &mut operations::Handler){
+fn music_idle (sink : &Sink, handler: &mut operations::Handler, stdout: & mut SharedWriter){
     if sink.empty(){
+        if handler.cur_song.is_some(){
+            handler.stack.push(handler.cur_song.as_ref().unwrap().clone());
+        }
         match handler.islooping{
             operations::Loop::NoLoop => {
                 if !handler.queue.is_empty(){
                     play_song(sink, handler.queue.get(0).unwrap().clone());
                     handler.cur_song = Some(handler.queue.get(0).unwrap().to_owned());
                     handler.queue.remove(0);
+                }
+                else{
+                    handler.cur_song = None;
                 }
             },
             operations::Loop::LoopSong => {
@@ -56,25 +62,40 @@ fn music_idle (sink : &Sink, handler: &mut operations::Handler){
                 }
             },
         }
+        if handler.cur_song.as_ref().is_some(){
+            let _ = writeln!(stdout, "Now Playing {}", handler.cur_song.as_ref().unwrap().clone());
+        }
     }
 }
 
 
-fn queue_file(handler: &mut operations::Handler,  s: String, stdout : & mut SharedWriter){
-    let path = std::env::var("MUSICPATH").expect("MUSICPATH must be set.") + &s;
-    if Path::new(&path).is_file(){
-        handler.queue.push(path);
+fn queue_file(handler: &mut operations::Handler,  s: String, stdout : & mut SharedWriter)-> Result<(),()>{
+    if Path::new(&s).is_file(){
+        handler.queue.push(s.clone());
         let _ = writeln!(stdout, "Queued {}", s.to_owned());
+        Ok(())
     }
     else{
-        writeln!(stdout, "Could not find or queue {}", &path).unwrap();
+        let path = std::env::var("MUSICPATH").expect("MUSICPATH must be set.") + &s;
+        if Path::new(&path).is_file(){
+            handler.queue.push(path);
+            let _ = writeln!(stdout, "Queued {}", s.to_owned());
+            Ok(())
+        }
+        else{
+            Err(())
+        }
     }
 }
 
-fn queue_folder(handler: &mut operations::Handler,  s:String, stdout: & mut SharedWriter, shuffle : bool){
-    if shuffle{
+fn queue_folder(handler: &mut operations::Handler,  s:String, stdout: & mut SharedWriter, shuffle : bool) -> Result<(), ()>{
+    let path:String;
+    if !Path::new(&s).is_dir(){
+        path = std::env::var("MUSICPATH").expect("MUSICPATH must be set.") + &s;
     }
-    let path = std::env::var("MUSICPATH").expect("MUSICPATH must be set.") + &s;
+    else{
+        path = s.clone();
+    }
     if Path::new(&path).is_dir(){
         let files_and_stuff = WalkDir::new(&path);
         for file in files_and_stuff{
@@ -88,8 +109,10 @@ fn queue_folder(handler: &mut operations::Handler,  s:String, stdout: & mut Shar
             let mut rng = thread_rng();
             handler.queue.shuffle(& mut rng);
         }
+        Ok(())
     }else{
-        let _ = writeln!(stdout, "Could not queue that folder. If you meant to queue a file makke sure you have a valid file extension");
+        // let _ = writeln!(stdout, "Could not queue that folder. If you meant to queue a file makke sure you have a valid file extension");
+        Err(())
     }
 }
 
@@ -127,33 +150,35 @@ fn volume_control(sink : &Sink, s: Vec<&str>, stdout : & mut SharedWriter){
     }
 }
 
-fn queue(handler: &mut operations::Handler,  s : Vec<&str>, stdout: & mut SharedWriter) {
+fn queue(handler: &mut operations::Handler,  s : Vec<&str>, stdout: & mut SharedWriter) -> Result<(), ()> {
     if (s.len() > 0) & (s.clone().into_iter().nth(0) != Some("")) {
         if s.clone().into_iter().nth(0).unwrap()== "view" {
             if handler.cur_song.clone().is_some(){
                 let _ = write!(stdout, "Currently Playing{}\nUp next -> ", handler.cur_song.clone().unwrap());
                 match &handler.islooping{
-                    operations::Loop::LoopSong => writeln!(stdout, "the same song :)").unwrap(),
-                    _ => writeln!(stdout, "{:?}", handler.queue.clone()).unwrap()
+                    operations::Loop::LoopSong => Ok(writeln!(stdout, "the same song :)").unwrap()),
+                    _ => Ok(writeln!(stdout, "{:?}", handler.queue.clone()).unwrap())
                 }
             }
             else{
                 let _ = writeln!(stdout, "No song is playing right now");
+                Ok(())
             }
         }
         else if s.clone().into_iter().nth(0).unwrap()== "shuffle"{
             let news:Vec<&str> = s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
-            queue_folder(handler, news.join(" "), stdout, true);
+            queue_folder(handler, news.join(" "), stdout, true)
         }
         else if s.clone().into_iter().any(|x |is_music_file(x)){
-            queue_file(handler, s.join(" "), stdout);
+            queue_file(handler, s.join(" "), stdout)
         }
         else{
-            queue_folder(handler, s.join(" "), stdout, false);
+            queue_folder(handler, s.join(" "), stdout, false)
         }
     }
     else{
-        let _ = writeln!(stdout, "Error: Please provide a file or folder to queue");
+        // let _ = writeln!(stdout, "Error: Please provide a file or folder to queue");
+        Err(())
     }
 }
 
@@ -174,37 +199,72 @@ fn skip_handle(handler: & mut operations::Handler,sink : &Sink, stdout: & mut Sh
         }
         _ => ()
     }
+    handler.stack.push(handler.cur_song.as_ref().clone().unwrap().to_owned());
     handler.cur_song = None; 
     sink.skip_one();
     let _ = writeln!(stdout, "Skipped");
+}
+
+fn play_handle(sink : &Sink, s: Vec<&str>, handler: &mut operations::Handler, stdout: & mut SharedWriter){
+    if s.is_empty(){
+        sink.play();
+    }
+    else {
+        let mut temp: Vec<String> = handler.queue.clone();
+        handler.queue.clear();
+        match queue(handler, s.clone(), stdout){
+            Err(_) => {let _ = writeln!(stdout, "Could not play {}. Verify it exists or path exists", s.join(" "));},
+            _ => sink.skip_one(),
+        }
+        handler.queue.append(&mut temp);
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), ReadlineError>{
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let (mut rl, mut stdout ) = Readline::new(">> ".into())?;
-    let mut handler = operations::Handler{islooping: operations::Loop::NoLoop,cur_song: None, queue: Vec::new()};
+    let mut handler = operations::Handler{islooping: operations::Loop::NoLoop,cur_song: None, queue: Vec::new(), stack: Vec::new()};
     rl.should_print_line_on(true, false);
     dotenv().ok();
     let sink = Sink::try_new(&stream_handle).unwrap();
     loop{
         tokio::select! {
             _ = sleep(Duration::from_secs(1)) => {
-                music_idle(&sink, &mut handler);
+                music_idle(&sink, &mut handler, &mut stdout);
             }cmd = rl.readline() => match cmd {
                 Ok(ReadlineEvent::Line(command)) => {
                     let command = command.trim().to_string();
                     let s:Vec<&str>  = command.split(" ").collect();
                     match s.clone().into_iter().nth(0) {
                         Some("exit") | Some("Exit") =>break,
-                        Some("stop") => sink.stop(),
+                        Some("stop") => {sink.stop(); handler.queue.clear();},
                         Some("pause") => sink.pause(),
-                        Some("play") => sink.play(),
+                        Some("play") => play_handle(& sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut handler, & mut stdout),
                         Some("shuffle") => {let mut rng = thread_rng(); handler.queue.shuffle(& mut rng);}
                         Some("skip") => skip_handle(&mut handler, &sink, & mut stdout),
-                        Some("queue") => queue(& mut handler, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
+                        Some("queue") => {
+                            match queue(& mut handler, s.clone().into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout){
+                                Err(_) =>{
+                                    let vec: Vec<&str> = s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
+                                    let _ = writeln!(stdout, "Could not queue {}. Verify it exists or path is correct", vec.join(" "));
+                                },
+                                _ => ()
+                            }
+                        },
                         Some("volume") => volume_control(&sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
                         Some("loop") => loop_handle(& mut handler, s.get(1).unwrap().to_owned(), & mut stdout),
+                        Some("restart") => {
+                            if handler.cur_song.is_some(){
+                                sink.skip_one();
+                                let s = handler.cur_song.clone();
+                                play_song(&sink, s.unwrap());
+                                writeln!(stdout, "Restarting").unwrap();
+                            }
+                            else{
+                                writeln!(stdout, "No song to restart").unwrap();
+                            }
+                        }
                         Some ("") => (),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?
                     }                
