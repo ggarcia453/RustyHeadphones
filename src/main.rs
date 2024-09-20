@@ -47,7 +47,11 @@ fn music_idle (sink : &Sink, handler: &mut operations::Handler, stdout: & mut Sh
                 }
                 else if !handler.queue.is_empty(){
                     play_song(sink, handler.queue.get(0).unwrap().clone());
+                    let consume_queue: bool = handler.cur_song.is_none();
                     handler.cur_song = Some(handler.queue.get(0).unwrap().to_owned());
+                    if consume_queue{
+                        handler.queue.remove(0);
+                    }
                 }
             },
             operations::Loop::LoopQueue => {
@@ -156,7 +160,7 @@ fn queue(handler: &mut operations::Handler,  s : Vec<&str>, stdout: & mut Shared
             if handler.cur_song.clone().is_some(){
                 let _ = write!(stdout, "Currently Playing{}\nUp next -> ", handler.cur_song.clone().unwrap());
                 match &handler.islooping{
-                    operations::Loop::LoopSong => Ok(writeln!(stdout, "the same song :)").unwrap()),
+                    operations::Loop::LoopSong => Ok(writeln!(stdout, "the same song :) {:?}", handler.queue.clone()).unwrap()),
                     _ => Ok(writeln!(stdout, "{:?}", handler.queue.clone()).unwrap())
                 }
             }

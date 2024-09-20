@@ -14,11 +14,7 @@ librust-alsa-sys-dev
 ```
 
 # Future Plans
-1. Continuing to add features 
-    a. Queue with absolute path
-    b. Immediately play song
-    c. Go back to previous songs
-    d. Restart current song
-    e. Path Sense/Autocomplete (Similar to other terminals)
+Features planning to be added
+1. Path Sense/Autocomplete (Similar to other terminals)
 2. Integrate song streaming with Spotify or some other service
 3. GUI mode
