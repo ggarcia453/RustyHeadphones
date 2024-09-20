@@ -63,7 +63,7 @@ fn music_idle (sink : &Sink, handler: &mut operations::Handler, stdout: & mut Sh
             },
         }
         if handler.cur_song.as_ref().is_some(){
-            let _ = writeln!(stdout, "Now Playing {}", handler.cur_song.as_ref().unwrap().clone());
+            writeln!(stdout, "Now Playing {}", handler.cur_song.as_ref().unwrap().clone()).unwrap();
         }
     }
 }
@@ -202,7 +202,7 @@ fn skip_handle(handler: & mut operations::Handler,sink : &Sink, stdout: & mut Sh
     handler.stack.push(handler.cur_song.as_ref().clone().unwrap().to_owned());
     handler.cur_song = None; 
     sink.skip_one();
-    let _ = writeln!(stdout, "Skipped");
+    writeln!(stdout, "Skipped").unwrap();
 }
 
 fn play_handle(sink : &Sink, s: Vec<&str>, handler: &mut operations::Handler, stdout: & mut SharedWriter){
@@ -213,10 +213,31 @@ fn play_handle(sink : &Sink, s: Vec<&str>, handler: &mut operations::Handler, st
         let mut temp: Vec<String> = handler.queue.clone();
         handler.queue.clear();
         match queue(handler, s.clone(), stdout){
-            Err(_) => {let _ = writeln!(stdout, "Could not play {}. Verify it exists or path exists", s.join(" "));},
+            Err(_) => writeln!(stdout, "Could not play {}. Verify it exists or path exists", s.join(" ")).unwrap(),
             _ => sink.skip_one(),
         }
         handler.queue.append(&mut temp);
+    }
+}
+
+fn back_handle(handler: &mut operations::Handler, sink : &Sink, stdout: & mut SharedWriter){
+    if handler.stack.len() > 0{
+        let mut new_queue: Vec<String> = Vec::new();
+        let nextsong :String;
+        let mut curque :Vec<String> = handler.queue.clone();
+        nextsong = handler.stack.pop().unwrap();
+        new_queue.push(nextsong);
+        if handler.cur_song.is_some(){
+            new_queue.push(handler.cur_song.as_ref().clone().unwrap().to_owned());
+            handler.cur_song = None;
+        }
+        new_queue.append(&mut curque);
+        handler.queue.clear();
+        handler.queue.append(&mut new_queue);
+        sink.skip_one();
+    }
+    else{
+        writeln!(stdout, "Cannot go back. No songs to go back to!").unwrap();
     }
 }
 
@@ -238,7 +259,7 @@ async fn main() -> Result<(), ReadlineError>{
                     let s:Vec<&str>  = command.split(" ").collect();
                     match s.clone().into_iter().nth(0) {
                         Some("exit") | Some("Exit") =>break,
-                        Some("stop") => {sink.stop(); handler.queue.clear();},
+                        Some("stop") => {sink.stop();handler.cur_song = None; handler.queue.clear();handler.stack.clear();},
                         Some("pause") => sink.pause(),
                         Some("play") => play_handle(& sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut handler, & mut stdout),
                         Some("shuffle") => {let mut rng = thread_rng(); handler.queue.shuffle(& mut rng);}
@@ -264,7 +285,8 @@ async fn main() -> Result<(), ReadlineError>{
                             else{
                                 writeln!(stdout, "No song to restart").unwrap();
                             }
-                        }
+                        },
+                        Some("back") => back_handle(&mut handler, & sink, & mut stdout),
                         Some ("") => (),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?
                     }                
