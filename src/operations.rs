@@ -10,6 +10,7 @@ use walkdir::WalkDir;
 fn is_music_file(x: &str) -> bool{
     x .contains(".wav") | x.contains(".mp3") | x.contains(".ogg") |x.contains(".flac")
 }
+#[derive(PartialEq, PartialOrd)]
 pub enum Loop{
     NoLoop,
     LoopQueue,
@@ -69,7 +70,6 @@ impl QueueHelper for Handler{
             }
             Ok(())
         }else{
-            // let _ = writeln!(stdout, "Could not queue that folder. If you meant to queue a file makke sure you have a valid file extension");
             Err(())
         }
     }
@@ -80,33 +80,39 @@ pub trait AddToQueue {
 
 impl AddToQueue for Handler {
     fn queue_handle(& mut self, s : Vec<&str>, stdout: & mut SharedWriter) -> Result<(), ()>{
-        if (s.len() > 0) & (s.clone().into_iter().nth(0) != Some("")) {
-            if s.clone().into_iter().nth(0).unwrap()== "view" {
-                if self.cur_song.clone().is_some(){
-                    let _ = write!(stdout, "Currently Playing{}\nUp next -> ", self.cur_song.clone().unwrap());
-                    match &self.islooping{
-                        Loop::LoopSong => Ok(writeln!(stdout, "the same song :) {:?}", self.queue.clone()).unwrap()),
-                        _ => Ok(writeln!(stdout, "{:?}", self.queue.clone()).unwrap())
+        let filterds: Vec<&str> = s.into_iter().filter(|&i | i != "").collect();
+        if (filterds.len() > 0) & (filterds.clone().into_iter().nth(0) != Some("")) {
+            match filterds.clone().get(0) {
+                Some(&"view") => {
+                    match &self.cur_song.clone() {
+                        Some(song) => {
+                            write!(stdout, "Currently Playing{}\nUp next -> ", song).unwrap();
+                            if &self.islooping == &Loop::LoopSong{
+                                write!(stdout, "the same song :)\nAfter ->").unwrap();
+                            }
+                            writeln!(stdout, "{:?}", self.queue.clone()).unwrap();
+                            Ok(())
+                        },
+                        None => Ok(writeln!(stdout, "No song is playing right now").unwrap()),
+                    }
+                },
+                Some(&"shuffle") => {
+                    let news:Vec<&str> = filterds.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
+                    self.queue_folder(news.join(" "), stdout, true)
+                },
+                Some(_) => {
+                    let mut request = filterds.clone().into_iter();
+                    if request.any(|x |is_music_file(x)){
+                        self.queue_file( filterds.join(" "), stdout)
+                    }
+                    else{
+                        self.queue_folder(filterds.join(" "), stdout, false)
                     }
                 }
-                else{
-                    let _ = writeln!(stdout, "No song is playing right now");
-                    Ok(())
-                }
-            }
-            else if s.clone().into_iter().nth(0).unwrap()== "shuffle"{
-                let news:Vec<&str> = s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
-                self.queue_folder(news.join(" "), stdout, true)
-            }
-            else if s.clone().into_iter().any(|x |is_music_file(x)){
-                self.queue_file( s.join(" "), stdout)
-            }
-            else{
-                self.queue_folder(s.join(" "), stdout, false)
+                _ => Err(()),
             }
         }
         else{
-            // let _ = writeln!(stdout, "Error: Please provide a file or folder to queue");
             Err(())
         }
     }

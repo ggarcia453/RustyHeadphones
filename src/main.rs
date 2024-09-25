@@ -12,7 +12,7 @@ extern crate rand;
 use rand::thread_rng;
 
 mod operations;
-mod spotify;
+mod search;
 pub fn volume_control(sink : &Sink, s: Vec<&str>, stdout : & mut SharedWriter){
     match s.get(0).unwrap().to_owned(){
         "View" | "view" | "VIEW" => writeln!(stdout, "Playing at {}", sink.volume()).unwrap(),
@@ -98,7 +98,7 @@ fn music_idle (sink : &Sink, handler: &mut operations::Handler, stdout: & mut Sh
                 }
             },
         }
-        if handler.cur_song.as_ref().is_some(){
+        if handler.cur_song.as_ref().is_some() &&  handler.islooping != operations::Loop::LoopSong{
             writeln!(stdout, "Now Playing {}", handler.cur_song.as_ref().unwrap().clone()).unwrap();
         }
     }
@@ -109,9 +109,9 @@ fn music_idle (sink : &Sink, handler: &mut operations::Handler, stdout: & mut Sh
 async fn main() -> Result<(), ReadlineError>{
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let (mut rl, mut stdout ) = Readline::new(">> ".into())?;
+    dotenv().ok();
     let mut handler = operations::Handler{islooping: operations::Loop::NoLoop,cur_song: None, queue: Vec::new(), stack: Vec::new()};
     rl.should_print_line_on(true, false);
-    dotenv().ok();
     let sink = Sink::try_new(&stream_handle).unwrap();
     loop{
         tokio::select! {
@@ -151,7 +151,7 @@ async fn main() -> Result<(), ReadlineError>{
                             }
                         },
                         Some("back") => handler.back_handle(& sink, & mut stdout),
-                        Some("spotify") => spotify::spotify_handle(),
+                        Some("spotify") => (),
                         Some ("") => (),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?
                     }                
