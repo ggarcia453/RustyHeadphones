@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::BufReader;
-use operations::{AddToQueue, Backer, LoopHandle, Player, Skipper};
+use operations::{AddToQueue, Backer, LoopHandle, Muteable, Player, Skipper};
 use rand::seq::SliceRandom;
 use rustyline_async::{Readline, ReadlineError, ReadlineEvent, SharedWriter};
 use rodio::{Decoder, OutputStream, Sink};
@@ -110,7 +110,7 @@ async fn main() -> Result<(), ReadlineError>{
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let (mut rl, mut stdout ) = Readline::new(">> ".into())?;
     dotenv().ok();
-    let mut handler = operations::Handler{islooping: operations::Loop::NoLoop,cur_song: None, queue: Vec::new(), stack: Vec::new()};
+    let mut handler = operations::Handler{islooping: operations::Loop::NoLoop,cur_song: None, queue: Vec::new(), stack: Vec::new(), volume: None};
     rl.should_print_line_on(true, false);
     let sink = Sink::try_new(&stream_handle).unwrap();
     loop{
@@ -151,6 +151,8 @@ async fn main() -> Result<(), ReadlineError>{
                             }
                         },
                         Some("back") => handler.back_handle(& sink, & mut stdout),
+                        Some("mute") => handler.mute(& sink),
+                        Some("unmute") => handler.unmute(&sink),
                         Some("spotify") => (),
                         Some ("") => (),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?

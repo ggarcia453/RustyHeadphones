@@ -22,6 +22,7 @@ pub struct Handler{
     pub cur_song : Option<String>,
     pub queue : Vec<String>,
     pub stack : Vec<String>,
+    pub volume : Option<f32>,
 }
 
 trait QueueHelper {
@@ -59,9 +60,9 @@ impl QueueHelper for Handler{
             let files_and_stuff = WalkDir::new(&path);
             for file in files_and_stuff{
                 let fpath = file.as_ref().unwrap().path().to_str().unwrap();
-                if Path::is_file(Path::new(fpath)) && is_music_file(fpath){
+                if Path::new(fpath).is_file() && is_music_file(fpath){
                     self.queue.push(fpath.to_owned());
-                    writeln!(stdout, "Queued {}", fpath.to_owned()).unwrap();
+                    let _ = writeln!(stdout, "Queued {}", fpath.to_owned());
                 }
             }
             if shuffle{
@@ -202,5 +203,26 @@ impl Skipper for Handler{
         self.cur_song = None; 
         sink.skip_one();
         writeln!(stdout, "Skipped").unwrap();
+    }
+}
+
+pub trait Muteable{
+    fn mute(& mut self, sink: & Sink);
+    fn unmute(&mut self, sink: & Sink);
+}
+
+impl Muteable for Handler{
+    fn mute(&mut self, sink: &Sink) {
+        if self.volume.is_none(){
+            self.volume = Some(sink.volume());
+            sink.set_volume(0.0);
+        }
+    }
+
+    fn unmute(&mut self, sink : &Sink) {
+        if self.volume.is_some(){
+            sink.set_volume(self.volume.unwrap());
+            self.volume = None;
+        }
     }
 }
