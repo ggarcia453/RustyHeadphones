@@ -121,14 +121,14 @@ async fn main() -> Result<(), ReadlineError>{
                 Ok(ReadlineEvent::Line(command)) => {
                     let command = command.trim().to_string();
                     let s:Vec<&str>  = command.split(" ").collect();
-                    match s.clone().into_iter().nth(0) {
-                        Some("exit") | Some("Exit") =>break,
-                        Some("stop") => {sink.stop();handler.cur_song = None; handler.queue.clear();handler.stack.clear();},
-                        Some("pause") => sink.pause(),
-                        Some("play") => handler.play_handle(& sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
-                        Some("shuffle") => {let mut rng = thread_rng(); handler.queue.shuffle(& mut rng);}
-                        Some("skip") => handler.skip_handle(&sink, & mut stdout),
-                        Some("queue") => {
+                    match s.clone().get(0) {
+                        Some(&"exit") | Some(&"Exit") =>break,
+                        Some(&"stop") => {sink.stop();handler.cur_song = None; handler.queue.clear();handler.stack.clear();},
+                        Some(&"pause") => sink.pause(),
+                        Some(&"play") => handler.play_handle(& sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
+                        Some(&"shuffle") => {let mut rng = thread_rng(); handler.queue.shuffle(& mut rng);}
+                        Some(&"skip") => handler.skip_handle(&sink, & mut stdout),
+                        Some(&"queue") => {
                             match handler.queue_handle(s.clone().into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout){
                                 Err(_) =>{
                                     let vec: Vec<&str> = s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
@@ -137,9 +137,9 @@ async fn main() -> Result<(), ReadlineError>{
                                 _ => ()
                             }
                         },
-                        Some("volume") => volume_control(&sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
-                        Some("loop") =>handler.loop_handle(s.get(1).unwrap().to_owned(), & mut stdout),
-                        Some("restart") => {
+                        Some(&"volume") => volume_control(&sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
+                        Some(&"loop") =>handler.loop_handle(s.get(1).unwrap().to_owned(), & mut stdout),
+                        Some(&"restart") => {
                             if handler.cur_song.is_some(){
                                 sink.skip_one();
                                 let s = handler.cur_song.clone();
@@ -150,11 +150,9 @@ async fn main() -> Result<(), ReadlineError>{
                                 writeln!(stdout, "No song to restart").unwrap();
                             }
                         },
-                        Some("back") => handler.back_handle(& sink, & mut stdout),
-                        Some("mute") => handler.mute(& sink),
-                        Some("unmute") => handler.unmute(&sink),
-                        Some("spotify") => (),
-                        Some ("") => (),
+                        Some(&"back") => handler.back_handle(& sink, & mut stdout),
+                        Some(&"mute") => handler.mute(& sink),
+                        Some(&"unmute") => handler.unmute(&sink),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?
                     }                
 
@@ -173,7 +171,7 @@ async fn main() -> Result<(), ReadlineError>{
         }
         
     }
-    let _ = writeln!(stdout, "Goodbye! :)");
+    writeln!(stdout, "Goodbye! :)").unwrap();
     rl.flush()?;
     Ok(())
 }
