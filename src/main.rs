@@ -12,7 +12,6 @@ extern crate rand;
 use rand::thread_rng;
 
 mod operations;
-mod search;
 pub fn volume_control(sink : &Sink, s: Vec<&str>, stdout : & mut SharedWriter){
     match s.get(0).unwrap().to_owned(){
         "View" | "view" | "VIEW" => writeln!(stdout, "Playing at {}", sink.volume()).unwrap(),
