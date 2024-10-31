@@ -107,6 +107,47 @@ impl RustyHeadphones{
         }
         writeln!(stdout, "Volume now at {}", self.sink.volume()).unwrap();
     }
+
+    fn mute(& mut self){
+        self.handler.mute(&self.sink);
+    }
+
+    fn unmute(&mut self){
+        self.handler.unmute(&self.sink);
+    }
+
+    fn stop (&mut self){
+        self.sink.stop();
+        self.handler.cur_song = None;
+        self.handler.queue.clear();
+        self.handler.stack.clear();
+    }
+
+    fn shuffle(&mut self){
+        let mut rng = thread_rng(); 
+        self.handler.queue.shuffle(& mut rng);
+    }
+
+    fn queue(&mut self, s: Vec<&str>, stdout: & mut SharedWriter){
+        match self.handler.queue_handle(s.clone(), stdout){
+            Err(_) =>{
+                let _ = writeln!(stdout, "Could not queue {}. Verify it exists or path is correct", s.join(" "));
+            },
+            _ => ()
+        }
+    }
+
+    fn restart(&mut self, stdout: & mut SharedWriter){
+        if self.handler.cur_song.is_some(){
+            self.sink.skip_one();
+            let s = self.handler.cur_song.clone();
+            self.play_song(s.as_ref().unwrap());
+            writeln!(stdout, "Restarting").unwrap();
+        }
+        else{
+            writeln!(stdout, "No song to restart").unwrap();
+        }
+    }
 }
 
 #[tokio::main]
@@ -128,44 +169,18 @@ async fn main() -> Result<(), ReadlineError>{
                     let s:Vec<&str>  = command.split(" ").collect();
                     match s.clone().get(0){
                         Some(&"exit") | Some(&"Exit") =>break,
-                        Some(&"stop") => {
-                            rustyheadphone.sink.stop();
-                            rustyheadphone.handler.cur_song = None;
-                            rustyheadphone.handler.queue.clear();
-                            rustyheadphone.handler.stack.clear();
-                        },
+                        Some(&"stop") => rustyheadphone.stop(),
                         Some(&"pause") => rustyheadphone.sink.pause(),                        
                         Some(&"play") => rustyheadphone.handler.play_handle(& rustyheadphone.sink, s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
-                        Some(&"shuffle") => {
-                            let mut rng = thread_rng(); 
-                            rustyheadphone.handler.queue.shuffle(& mut rng);
-                        }
+                        Some(&"shuffle") => rustyheadphone.shuffle(),
                         Some(&"skip") => rustyheadphone.handler.skip_handle(&rustyheadphone.sink, & mut stdout),
-                        Some(&"queue") => {
-                            match rustyheadphone.handler.queue_handle(s.clone().into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout){
-                                Err(_) =>{
-                                    let vec: Vec<&str> = s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
-                                    let _ = writeln!(stdout, "Could not queue {}. Verify it exists or path is correct", vec.join(" "));
-                                },
-                                _ => ()
-                            }
-                        },
+                        Some(&"queue") => rustyheadphone.queue(s.clone().into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), &mut stdout),
                         Some(&"volume") => rustyheadphone.volume_control(s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect(), & mut stdout),
                         Some(&"loop") =>rustyheadphone.handler.loop_handle(s.get(1).unwrap().to_owned(), & mut stdout),
-                        Some(&"restart") => {
-                            if rustyheadphone.handler.cur_song.is_some(){
-                                rustyheadphone.sink.skip_one();
-                                let s = rustyheadphone.handler.cur_song.clone();
-                                rustyheadphone.play_song(s.as_ref().unwrap());
-                                writeln!(stdout, "Restarting").unwrap();
-                            }
-                            else{
-                                writeln!(stdout, "No song to restart").unwrap();
-                            }
-                        },
+                        Some(&"restart") => rustyheadphone.restart(&mut stdout),
                         Some(&"back") => rustyheadphone.handler.back_handle(& rustyheadphone.sink, & mut stdout),
-                        Some(&"mute") => rustyheadphone.handler.mute(& rustyheadphone.sink),
-                        Some(&"unmute") => rustyheadphone.handler.unmute(&rustyheadphone.sink),
+                        Some(&"mute") => rustyheadphone.mute(),
+                        Some(&"unmute") => rustyheadphone.unmute(),
                         _ => writeln!(stdout, "Error: Cannot do {} right now", &s.join(" "))?
                     }
                 }
