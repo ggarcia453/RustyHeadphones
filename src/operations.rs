@@ -10,13 +10,14 @@ use walkdir::WalkDir;
 fn is_music_file(x: &str) -> bool{
     x .contains(".wav") | x.contains(".mp3") | x.contains(".ogg") |x.contains(".flac")
 }
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
 pub enum Loop{
     NoLoop,
     LoopQueue,
     LoopSong
 }
 
+#[derive(Debug, Clone)]
 pub struct Handler{
     pub islooping: Loop,
     pub cur_song : Option<String>,
