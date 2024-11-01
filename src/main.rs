@@ -11,6 +11,7 @@ use tokio::time::sleep;
 extern crate rand;
 use rand::thread_rng;
 mod operations;
+mod helpers;
 
 struct RustyHeadphones{
     handler: operations::Handler,
