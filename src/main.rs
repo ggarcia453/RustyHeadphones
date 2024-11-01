@@ -15,9 +15,7 @@ mod helpers;
 
 struct RustyHeadphones{
     handler: operations::Handler,
-    sink: Sink,
-    _stream: OutputStream,
-    _stream_handle: rodio::OutputStreamHandle,
+    sink: Sink
 }
 
 impl RustyHeadphones{
@@ -159,7 +157,7 @@ async fn main() -> Result<(), ReadlineError>{
     let handler = operations::Handler{islooping: operations::Loop::NoLoop,cur_song: None, queue: Vec::new(), stack: Vec::new(), volume: None};
     rl.should_print_line_on(true, false);
     let sink = Sink::try_new(&stream_handle).unwrap();
-    let mut rustyheadphone:RustyHeadphones = RustyHeadphones{handler : handler, sink:sink, _stream: _stream, _stream_handle: stream_handle};
+    let mut rustyheadphone:RustyHeadphones = RustyHeadphones{handler, sink};
     loop {
         tokio::select! {
             _ = sleep(Duration::from_secs(1)) =>{
