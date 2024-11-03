@@ -129,10 +129,7 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                             },
                         }
                         if handler.cur_song.as_ref().is_some() &&  handler.islooping != operations::Loop::LoopSong{
-                            print!("\x1B[1A");
-                            print!("\x1B[2K");
                             println!("Now Playing {}", handler.cur_song.as_ref().unwrap().clone());
-                            print!("\x1B[1E");
                         }
                     }
                 }
