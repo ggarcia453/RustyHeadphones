@@ -13,6 +13,7 @@ use tokio::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 mod operations;
 mod helpers;
+use std::env;
 
 #[derive(Debug, Clone)]
 pub enum AudioCommand {
@@ -71,13 +72,13 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                     match play_song(next_song.as_ref().unwrap(), &sink){
                                         Ok(_) => {
                                             handler.cur_song = Some(next_song.unwrap().to_owned());
-                                            handler.queue.remove(0);
                                         },
                                         Err(_)=>{
                                             handler.cur_song = None;
                                             println!("Error playing song :/")
                                         }
                                     };
+                                    handler.queue.remove(0);
                                 }
                                 else{
                                     handler.cur_song = None;
@@ -88,7 +89,7 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                     match play_song(handler.cur_song.as_ref().unwrap(), &sink){
                                         Err(_)=>{
                                             handler.cur_song = None;
-                                            println!("Error playing song :/")
+                                            println!("Error playing song :/");
                                         }, 
                                         _ => (),
                                     };
@@ -98,13 +99,13 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                     match play_song(&nextsong, &sink){
                                         Ok(_) =>{
                                             handler.cur_song = Some(nextsong);
-                                            handler.queue.remove(0);
                                         },
                                         Err(_) =>{
                                             handler.cur_song = None;
                                             println!("Error playing song :/")
                                         }
                                     }
+                                    handler.queue.remove(0);
                                     
                                 }
                             },
@@ -118,13 +119,13 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                     match play_song(&nextsong, &sink){
                                         Ok(_) => {
                                             handler.cur_song = Some(nextsong);
-                                            handler.queue.remove(0);
                                         },
                                         Err(_)=>{
                                             handler.cur_song = None;
                                             println!("Error playing song :/")
                                         }
-                                    };    
+                                    };
+                                    handler.queue.remove(0);
                                 }
                             },
                         }
@@ -185,20 +186,21 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                             if options.get(1).is_some(){
                                                 let val: Result<f32,_> = options.get(1).unwrap().parse();
                                                 match val{
-                                                    Err(_) => println!("Error: volume should be set to between 0 and 1"),
+                                                    Err(_) => println!("Error: volume should be set to between 0 and 100"),
                                                     Ok(volume) => {
-                                                        if 0.0 <= volume && volume <= 1.0{
-                                                            sink.set_volume(volume)
+                                                        if 0.0 <= volume && volume <= 100.0{
+                                                            sink.set_volume(volume/100.0 as f32)
                                                         }
                                                         else{
-                                                            println!("Error: volume should be set to between 0 and 1")
+                                                            println!("Error: volume should be set to between 0 and 100")
                                                         }
                                                     },
                                                 }
                                             }else{
-                                                println!("Error: volume should be set to between 0 and 1");
+                                                println!("Error: volume should be set to between 0 and 100");
                                             }
-                                            println!("Volume is at {}", sink.volume());
+                                            let volume: f32 = sink.volume() as f32;
+                                            println!("Volume is at {:.0}", 100.0 * volume);
                                         },
                                         "down" | "Down" => {
                                             let cur_volume = sink.volume();
@@ -208,7 +210,8 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                             else{
                                                 sink.set_volume(0.0);
                                             }
-                                            println!("Volume is at {}", sink.volume());
+                                            let volume: f32 = sink.volume() as f32;
+                                            println!("Volume is at {:.0}", 100.0 * volume);
                                         }
                                         "up" | "Up" => {
                                             let cur_volume = sink.volume();
@@ -218,7 +221,8 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                                             else{
                                                 sink.set_volume(1.0);
                                             }
-                                            println!("Volume is at {}", sink.volume());
+                                            let volume: f32 = sink.volume() as f32;
+                                            println!("Volume is at {:.0}", 100.0 * volume);
                                         }
                                         x => println!("Cannot find volume {}", x),
                                     }
@@ -275,7 +279,12 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
 #[tokio::main]
 async fn main() -> Result<(), ReadlineError>{
     dotenv().ok();
-    let path = std::env::var("MUSICPATH").expect("MUSICPATH must be set.");
+    let path = std::env::var("MUSICPATH").unwrap_or_else(|_| {
+        env::current_dir()
+        .expect("Failed to get current directory")
+        .to_string_lossy()
+        .into_owned()
+    });
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
     let player = Arc::new(RustyHeadphones::new(tx.clone())); 
