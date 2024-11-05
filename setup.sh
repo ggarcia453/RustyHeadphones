@@ -17,4 +17,4 @@ if [[ "${musicpath: -1}" != "\\" && "${musicpath: -1}" != "/" ]]; then
 fi
 
 echo "MUSICPATH=\"$musicpath\"" > .env
-cargo build
+cargo build --release

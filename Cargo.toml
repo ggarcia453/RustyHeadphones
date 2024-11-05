@@ -9,7 +9,4 @@ rodio = "0.19.0"
 tokio = {version="1.40.0", features=["full"]}
 walkdir = "2.5.0"
 rand = "*"
-eframe = "0.24"
-egui = "0.24"
-rfd = "0.12"
 rustyline = "14.0.0"

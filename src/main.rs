@@ -11,9 +11,9 @@ use rustyline::{CompletionType, Config, Editor};
 use rustyline::error::ReadlineError;
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
+use std::env;
 mod operations;
 mod helpers;
-use std::env;
 
 #[derive(Debug, Clone)]
 pub enum AudioCommand {
@@ -29,6 +29,7 @@ pub enum AudioCommand {
     Unmute,
     Restart,
     SetLoop(Option<String>),
+    Help,
     Exit,
 }
 struct RustyHeadphones{
@@ -270,6 +271,26 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                             handler.back_handle(&sink);
                         }
                     },
+                    AudioCommand::Help=>{
+                        println!("Here is a comphrensive list of all the commands you can use!");
+                        println!("exit -> exits the program");
+                        println!("stop -> stops playing music, resets queue and song history");
+                        println!("pause -> pauses the music");
+                        println!("play -> plays the music");
+                        println!("play <file/directory> -> plays a file or directory as requested. It skips the current queue and is played immedaitely");
+                        println!("shuffle -> shuflles current queue");
+                        println!("skip -> skips current song");
+                        println!("queue [shuffle] <file/directory> -> queues a file or directory as requested. It places it at the end of the current queue. You can optionally add shuffle to shuffle the directory being queued");
+                        println!("volume view -> view volume 0 - 100");
+                        println!("volume set <number> -> sets volume to number (0-100)");
+                        println!("volume <up/down> -> move volume up or down");
+                        println!("loop <song/queue/cancel> -> set the loop option. loop song -> loop song only, loop queue -> loop song + queue, loop cancel =-> cancels all looping");
+                        println!("restart -> restarts current song from beginning");
+                        println!("back -> play previous song");
+                        println!("mute -> mute music");
+                        println!("unmute -> unmute music");
+                        println!("help -> Display help menu");
+                    }
                 }
             }
         }
@@ -279,12 +300,7 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
 #[tokio::main]
 async fn main() -> Result<(), ReadlineError>{
     dotenv().ok();
-    let path = std::env::var("MUSICPATH").unwrap_or_else(|_| {
-        env::current_dir()
-        .expect("Failed to get current directory")
-        .to_string_lossy()
-        .into_owned()
-    });
+    let path = std::env::var("MUSICPATH").unwrap_or(env::current_dir().expect("Could Not Grab Directory to use").to_string_lossy().into_owned());
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
     let player = Arc::new(RustyHeadphones::new(tx.clone())); 
@@ -298,6 +314,7 @@ async fn main() -> Result<(), ReadlineError>{
             player_thread(rx, stream_handle, sink, pptath).await;
         }
     });
+    println!("Welcome to RustyHeadphones! For help on how to use it use the help command or reference the README :)");
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -362,6 +379,9 @@ async fn main() -> Result<(), ReadlineError>{
                     Some(&"unmute")=>{
                         Some(AudioCommand::Unmute)
                     },
+                    Some(&"help")=>{
+                        Some(AudioCommand::Help)
+                    }
                     _ => {
                         println!("Testing: Cannot do {} right now", &s.join(" "));
                         None

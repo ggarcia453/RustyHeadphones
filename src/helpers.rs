@@ -31,6 +31,7 @@ impl HeadphoneHelper {
         "back",
         "mute",
         "unmute",
+        "help",
         ].into_iter().map(|s|s.to_string()).collect();
         let specialcommands = vec![
             "shuffle",
