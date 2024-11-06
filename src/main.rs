@@ -12,8 +12,17 @@ use rustyline::error::ReadlineError;
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 use std::env;
+use clap::Parser;
 mod operations;
 mod helpers;
+
+#[derive(Parser)]
+struct ArgumentTracker{
+    #[arg(short, long, default_value_t=env::current_dir().expect("Could Not Grab Directory to use").to_string_lossy().into_owned())]
+    defpath: String,
+    #[arg(short, long, default_value_t=String::new())]
+    token: String
+}
 
 #[derive(Debug, Clone)]
 pub enum AudioCommand {
@@ -299,8 +308,15 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
 
 #[tokio::main]
 async fn main() -> Result<(), ReadlineError>{
+    let args = ArgumentTracker::parse();
     dotenv().ok();
-    let path = std::env::var("MUSICPATH").unwrap_or(env::current_dir().expect("Could Not Grab Directory to use").to_string_lossy().into_owned());
+    let path :String; 
+    if let Ok(result) = std::env::var("MUSICPATH") {
+        path = result;
+    }
+    else{
+        path = args.defpath;
+    }
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
     let player = Arc::new(RustyHeadphones::new(tx.clone())); 
@@ -381,6 +397,16 @@ async fn main() -> Result<(), ReadlineError>{
                     },
                     Some(&"help")=>{
                         Some(AudioCommand::Help)
+                    },
+                    Some(&"spotify")=>{
+                        if args.token.is_empty(){
+                            println!("YOu need to pass in a token");
+                            None
+                        }
+                        else{
+                            println!("SPotify Setup");
+                            None
+                        }
                     }
                     _ => {
                         println!("Testing: Cannot do {} right now", &s.join(" "));
