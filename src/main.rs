@@ -38,6 +38,7 @@ pub enum AudioCommand {
     Unmute,
     Restart,
     SetLoop(Option<String>),
+    SetSpeed(Vec<String>),
     Help,
     Exit,
 }
@@ -187,11 +188,10 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                     },
                     AudioCommand::VolumeChanger(options)=>{
                         if let Ok(sink) = sink.lock(){
-
                             match options.first(){
                                 Some(op)=>{
                                     match op.as_str() {
-                                        "view" => println!("Playing at {}", sink.volume()),
+                                        "view" => println!("Playing at {:.0}", sink.volume() * 100.0 ),
                                         "set" => {
                                             if options.get(1).is_some(){
                                                 let val: Result<f32,_> = options.get(1).unwrap().parse();
@@ -280,6 +280,56 @@ async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<
                             handler.back_handle(&sink);
                         }
                     },
+                    AudioCommand::SetSpeed(options) =>{
+                        if let Ok(sink) = sink.lock(){
+                            match options.first(){
+                                Some(op) => {
+                                    match op.as_str(){
+                                        "view" => println!("Playing at {:.2}x speed", sink.speed()),
+                                        "set" => {
+                                            if options.get(1).is_some(){
+                                                let val: Result<f32,_> = options.get(1).unwrap().parse();
+                                                match val{
+                                                    Err(_) => println!("Error: volume should be set to between 0 and 100"),
+                                                    Ok(speed) => {
+                                                        if 0.01 <= speed{
+                                                            sink.set_speed(speed);
+                                                        }
+                                                        else{
+                                                            println!("Error: volume should be set to between 0 and 100");
+                                                        }
+                                                    },
+                                                }
+                                            }else{
+                                                println!("Error: volume should be set to between 0 and 100");
+                                            }
+                                            let speed: f32 = sink.speed() as f32;
+                                            println!("Now at {:.2}x speed", speed);
+                                        },
+                                        "down" | "Down" => {
+                                            let cur_speed = sink.speed();
+                                            if cur_speed > 0.05{
+                                                sink.set_speed(cur_speed - 0.05);
+                                            }
+                                            else{
+                                                sink.set_speed(0.01);
+                                            }
+                                            let speed: f32 = sink.speed();
+                                            println!("Now at {:.2}x speed", speed);
+                                        }
+                                        "up" | "Up" => {
+                                            let cur_speed = sink.speed();
+                                            sink.set_speed(cur_speed + 0.05);
+                                            let speed: f32 = sink.speed();
+                                            println!("Now at {:.2}x speed", speed);
+                                        }
+                                        x => println!("Cannot find speed {}", x)
+                                    }
+                                },
+                                None => ()
+                            }
+                        }
+                    }
                     AudioCommand::Help=>{
                         println!("Here is a comphrensive list of all the commands you can use!");
                         println!("exit -> exits the program");
@@ -407,6 +457,9 @@ async fn main() -> Result<(), ReadlineError>{
                             println!("SPotify Setup");
                             None
                         }
+                    },
+                    Some(&"speed")=>{
+                        Some(AudioCommand::SetSpeed(s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e.to_owned()).collect()))
                     }
                     _ => {
                         println!("Testing: Cannot do {} right now", &s.join(" "));

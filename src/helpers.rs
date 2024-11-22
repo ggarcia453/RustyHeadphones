@@ -32,6 +32,7 @@ impl HeadphoneHelper {
         "mute",
         "unmute",
         "help",
+        "speed",
         ].into_iter().map(|s|s.to_string()).collect();
         let specialcommands = vec![
             "shuffle",
@@ -73,7 +74,7 @@ impl Completer for HeadphoneHelper{
                     .collect();
                     Ok((start, partners))
                 }
-                else if line.starts_with("volume"){
+                else if (line.starts_with("volume") || line.starts_with("speed")) && line.chars().into_iter().filter(|ch | ch.is_whitespace() && ch != &'\n').count() < 2{
                     let options:Vec<String> = vec!["up", "down", "set", "view"].into_iter().map(|s|s.to_string()).collect();
                     let partners:Vec<Pair> = options.iter().filter(|cmd| cmd.starts_with(input))
                     .map(|cmd| rustyline::completion::Pair {
