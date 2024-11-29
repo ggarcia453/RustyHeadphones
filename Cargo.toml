@@ -12,3 +12,11 @@ rand = "*"
 rustyline = "14.0.0"
 rust_spotify_web_playback_sdk = { git = "https://github.com/KOEGlike/rust_spotify_web_playback_sdk" }
 clap = { version = "4.0", features = ["derive"] }
+egui = "0.26.2"
+eframe = { version = "0.26.2", default-features = false, features = [
+    "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence",   # Enable restoring app state when restarting the app.
+] }
+rfd = "0.11.0" 

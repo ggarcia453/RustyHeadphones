@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{fmt, fs::File};
 use std::io::BufReader;
 use tokio::time::sleep;
 use rodio::{Decoder, Sink, OutputStreamHandle};
@@ -6,7 +6,7 @@ use std::time::Duration;
 use rand::thread_rng;
 use std::sync::{Arc, Mutex};
 use crate::operations;
-use tokio::sync::mpsc::{Sender, Receiver};
+use tokio::sync::mpsc::Receiver;
 use rand::prelude::SliceRandom;
 
 #[derive(Debug, Clone)]
@@ -27,6 +27,13 @@ pub enum AudioCommand {
     Help,
     Exit,
 }
+impl fmt::Display for AudioCommand{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+
 fn play_song( s: & String, sink: &Sink)-> Result<(), Box<dyn std::error::Error>>{
    let f = File::open(s).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
    let file = BufReader::new(f);
@@ -34,22 +41,6 @@ fn play_song( s: & String, sink: &Sink)-> Result<(), Box<dyn std::error::Error>>
    sink.append(source);
    Ok(())
 }
-pub struct RustyHeadphones{
-    sender: Sender<AudioCommand>,
-}
-impl RustyHeadphones {
-    pub fn new (sender: Sender<AudioCommand>) -> Self{
-        Self{
-            sender
-        }
-    }
-    pub async fn send_command(&self, cmd: AudioCommand) {
-        if let Err(e) = self.sender.send(cmd).await {
-            println!("Failed to send command: {}", e);
-        }
-    }
-}
-
 pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<Mutex<OutputStreamHandle>>, sink: Arc<Mutex<Sink>>, defpath:String){
     let mut handler = operations::Handler::new(defpath);
     loop {

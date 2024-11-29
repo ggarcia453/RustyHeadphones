@@ -91,6 +91,7 @@ impl Handler{
                 Ok(())
             }
             else{
+                println!("{}", path);
                 Err(())
             }
         }

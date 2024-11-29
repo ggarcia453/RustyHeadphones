@@ -5,7 +5,6 @@ use rustyline::error::ReadlineError;
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 use crate::backend::AudioCommand;
-use crate::backend::RustyHeadphones;
 use crate::backend::player_thread;
 use crate::helpers;
 
@@ -20,7 +19,6 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
     }
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
-    let player = Arc::new(RustyHeadphones::new(tx.clone())); 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let stream_handle = Arc::new(Mutex::new(stream_handle));
     let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle.lock().unwrap()).unwrap()));
@@ -41,13 +39,7 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
     let mut rl = Editor::with_config(config)?;
     rl.set_helper(Some(h));
     let _ =  rl.load_history("history.txt");
-    let mut last_command_handle: Option<tokio::task::JoinHandle<()>> = None;
     loop {
-        if let Some(handle) = last_command_handle.take() {
-            if let Err(e) = handle.await {
-                println!("Previous command failed: {}", e);
-            }
-        }
         let p = format!(">>");
         let readline = rl.readline(&p);
         match readline {
@@ -120,10 +112,9 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
                 if let Some(cmd) = command{
                     let tx = tx.clone();
                     let cmd_copy = cmd.clone();
-                    last_command_handle = Some(tokio::spawn(async move {
-                    if let Err(e) = tx.send(cmd_copy).await {
+                    if let Err(e) = tx.try_send(cmd_copy){
                         println!("Failed to send command: {}", e);
-                    }}));
+                    }
                     match cmd {
                         AudioCommand::Exit=> break,
                         _ => ()
@@ -134,12 +125,16 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
                 continue;
             }
             Err(ReadlineError::Eof) => {
-                player.send_command(AudioCommand::Exit).await;
+                if let Err(e) = tx.send(AudioCommand::Exit).await {
+                    println!("Failed to send command: {}", e);
+                }
                 break;
             }
             Err(err) => {
                 println!("Error: {err:?}");
-                player.send_command(AudioCommand::Exit).await;
+                if let Err(e) = tx.send(AudioCommand::Exit).await {
+                    println!("Failed to send command: {}", e);
+                }
                 break;
             }
         }
