@@ -4,7 +4,7 @@ Welcome to Rusty Headphones! This is a terminal based audio player created by me
 To setup rusty headphones, we have provided a setup shell script. Here you can enter a working directory that serves as the default for your music libraries. From there, RustyHeadphones will be installed and you can begin using it 
 # Libraries
 This is a list of installed libarires needed for the rust crate 
-<a href ="https://docs.rs/rodio/latest/rodio/" target="_blank">rodio</a>
+(a href ="https://docs.rs/rodio/latest/rodio/" target="_blank")rodio(/a)
  for audio processing. They may be installed via the setup shell script provided. 
 ```
 libasound2-dev 
@@ -15,13 +15,22 @@ portaudio19-dev
 librust-alsa-sys-dev
 ```
 
+There are also some libraries needed for the rust crate 
+(a href="https://docs.rs/egui/0.29.1/egui/index.html" target= "_blank")egui(/a)
+ for gui creation. They are listed below.
+ ```
+ libgl1-mesa-glx
+ libegl1-mesa
+ xorg-dev
+ ```
+
 # Users Guide
 The following section details how to use RustyHeadphones once all requirements have been installed and configured. 
 ## Default Path 
 The default path can be configured with either the ```setup.sh``` script or manually by editing .env. If you choose not
 to use the .env file or if you cargo install Rustyheadphones it will default to the current working directory. 
 ## Commands
-You can find a list of commands below. For reference ```[a]``` indicates an optional argument "a", while ```<b>``` indicates a required argument "b".
+You can find a list of commands below. For reference ```[a]``` indicates an optional argument "a", while ```(b)``` indicates a required argument "b".
 |Command     |Action     |
 |:------------|:------------|
 | exit | This exits and quits the program.|
@@ -30,16 +39,19 @@ You can find a list of commands below. For reference ```[a]``` indicates an opti
 | play [file/directory] | Play has two modes. Without a file or directory, it will play the music if it is currently paused. With a file or directory, it will begin playing them immedialtey, skipping the current queue.|
 | shuffle | Shuffle will shuffle the current queue.|
 | skip | Skip will skip the current song being plaued.|
-| queue [shuffle] <file/directory> | Queue adds the requested file or directory to the end of the queue. You may shuffle the directory order.|
+| queue [shuffle] (file/directory) | Queue adds the requested file or directory to the end of the queue. You may shuffle the directory order.|
 | queue view | This allows you to view the current queue.|
 | volume view | This will print the current volume (0 -100)|
-| volume set <number> | Volume sets a new volume, whichc must be between 0 - 100.|
-| volume <up/down> | Move the volume up or down as requested.|
-| loop <song/queue/cancel> | This sets the looping option for the player. Loop song will loop the current/next song. Loop Queue will loop the current queue. Loop cancel will cancel all looping.|
+| volume set (number) | Volume sets a new volume, which must be between 0 - 100.|
+| volume (up/down) | Move the volume up or down as requested.|
+| loop (song/queue/cancel) | This sets the looping option for the player. Loop song will loop the current/next song. Loop Queue will loop the current queue. Loop cancel will cancel all looping.|
 | restart | Restarts the current song.|
 | back | Plays the previous song.|
 | mute | Mute the audio player.|
 | unmute | Unmute the audio player.|
+| volume set (number) | Will set the speed of the player to whatever new speed is.|
+| speed (up/down) | This moves the speed up or down as requested.|
+| speed view | This will print the current speed.|
 | help | This will print the help version of the command list.|
 
 
