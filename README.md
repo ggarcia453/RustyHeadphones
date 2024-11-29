@@ -4,7 +4,7 @@ Welcome to Rusty Headphones! This is a terminal based audio player created by me
 To setup rusty headphones, we have provided a setup shell script. Here you can enter a working directory that serves as the default for your music libraries. From there, RustyHeadphones will be installed and you can begin using it 
 # Libraries
 This is a list of installed libarires needed for the rust crate 
-(a href ="https://docs.rs/rodio/latest/rodio/" target="_blank")rodio(/a)
+<a href ="https://docs.rs/rodio/latest/rodio/" target="_blank">rodio</a>
  for audio processing. They may be installed via the setup shell script provided. 
 ```
 libasound2-dev 
@@ -16,7 +16,7 @@ librust-alsa-sys-dev
 ```
 
 There are also some libraries needed for the rust crate 
-(a href="https://docs.rs/egui/0.29.1/egui/index.html" target= "_blank")egui(/a)
+<a href="https://docs.rs/egui/0.29.1/egui/index.html" target= "_blank">egui</a>
  for gui creation. They are listed below.
  ```
  libgl1-mesa-glx
