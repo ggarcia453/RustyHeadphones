@@ -10,7 +10,8 @@ struct RustyHeadphonesGUI{
     tx :Sender<AudioCommand>,
     _sink : Arc<std::sync::Mutex<Sink>>,
     _stream : OutputStream, 
-    _stream_handle: Arc<Mutex<OutputStreamHandle>>
+    _stream_handle: Arc<Mutex<OutputStreamHandle>>,
+    filename: String
 }
 
 impl RustyHeadphonesGUI{
@@ -30,7 +31,8 @@ impl RustyHeadphonesGUI{
             tx,
             _sink : sink,
             _stream,
-            _stream_handle :stream_handle
+            _stream_handle :stream_handle,
+            filename : "".to_string()
         }
     }
 
@@ -39,12 +41,41 @@ impl RustyHeadphonesGUI{
 impl eframe::App for RustyHeadphonesGUI{
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                let la = ui.label("File to queue:");
+                let response = ui.add(egui::TextEdit::singleline(&mut self.filename)).labelled_by(la.id);
+                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    match self.tx.try_send(AudioCommand::Queue(self.filename.clone().split_whitespace().map(str::to_string).collect())) {
+                        Err(e) => println!("{:?}", e),
+                        Ok(_) => (),
+                    }
+                    self.filename = "".to_string();
+                }
+            });
             if ui.button("Queue").clicked(){
-                match self.tx.try_send(AudioCommand::Queue(vec!["Goodbye.mp3".to_string()])){
+                match self.tx.try_send(AudioCommand::Queue(self.filename.clone().split_whitespace().map(str::to_string).collect())) {
                     Err(e) => println!("{:?}", e),
                     Ok(_) => (),
                 }
+                self.filename = "".to_string();
             }
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui |{
+                ui.add_space(300.0);
+                let play_image = egui::include_image!("../assets/play.png");
+                if ui.add_sized([100.0, 100.0], egui::ImageButton::new(play_image)).clicked(){
+                    match self.tx.try_send(AudioCommand::Play(Vec::new())){
+                        Err(e) => println!("{:?}", e),
+                        Ok(_) => (),
+                    }
+                }
+                let pause_image = egui::include_image!("../assets/pause.png");
+                if ui.add_sized([100.0, 100.0], egui::ImageButton::new(pause_image)).clicked(){
+                    match self.tx.try_send(AudioCommand::Pause){
+                        Err(e) => println!("{:?}", e),
+                        Ok(_) => (),
+                    }
+                }
+            });
         });
     }
 }
@@ -60,9 +91,10 @@ pub async fn gui_main(defpath:String, _token:String) -> Result<(), eframe::Error
     }
     let ppath = path.clone();
     let options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "RustyHeadphones GUI",
-        options,
-        Box::new(|cc| Box::new(RustyHeadphonesGUI::new(cc, ppath)))
+    eframe::run_native("RustyHeadphonesGUI", options, 
+    Box::new(|cc|{
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+        Box::new(RustyHeadphonesGUI::new(cc, ppath))
+    })
     )
 }
