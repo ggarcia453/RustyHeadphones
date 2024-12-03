@@ -6,7 +6,7 @@ use std::time::Duration;
 use rand::thread_rng;
 use std::sync::{Arc, Mutex};
 use crate::operations;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use rand::prelude::SliceRandom;
 
 #[derive(Debug, Clone)]
@@ -41,7 +41,12 @@ fn play_song( s: & String, sink: &Sink)-> Result<(), Box<dyn std::error::Error>>
    sink.append(source);
    Ok(())
 }
-pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: Arc<Mutex<OutputStreamHandle>>, sink: Arc<Mutex<Sink>>, defpath:String){
+pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<Option<String>>, _stream_handle: Arc<Mutex<OutputStreamHandle>>, sink: Arc<Mutex<Sink>>, defpath:String){
+    fn sendprint(sender: & Sender<Option<String>>, s: String){
+        match sender.try_send(Some(s)){
+            _ => (),
+        }
+    }
     let mut handler = operations::Handler::new(defpath);
     loop {
         tokio::select! {
@@ -61,7 +66,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                         },
                                         Err(_)=>{
                                             handler.cur_song = None;
-                                            println!("Error playing song :/")
+                                            sendprint(&sender,"Error playing song :/".to_string());
                                         }
                                     };
                                     handler.queue.remove(0);
@@ -75,7 +80,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                     match play_song(handler.cur_song.as_ref().unwrap(), &sink){
                                         Err(_)=>{
                                             handler.cur_song = None;
-                                            println!("Error playing song :/");
+                                            sendprint(&sender,"Error playing song :/".to_string());
                                         }, 
                                         _ => (),
                                     };
@@ -88,7 +93,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                         },
                                         Err(_) =>{
                                             handler.cur_song = None;
-                                            println!("Error playing song :/")
+                                            sendprint(&sender,"Error playing song :/".to_string());
                                         }
                                     }
                                     handler.queue.remove(0);
@@ -108,7 +113,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                         },
                                         Err(_)=>{
                                             handler.cur_song = None;
-                                            println!("Error playing song :/")
+                                            sendprint(&sender,"Error playing song :/".to_string());
                                         }
                                     };
                                     handler.queue.remove(0);
@@ -116,14 +121,19 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                             },
                         }
                         if handler.cur_song.as_ref().is_some() &&  handler.islooping != operations::Loop::LoopSong{
-                            println!("Now Playing {}", handler.cur_song.as_ref().unwrap().clone());
+                            sendprint(&sender,format!("Now Playing {}", handler.cur_song.as_ref().unwrap().clone()) );
                         }
                     }
                 }
             },
             Some(cmd) = receiver.recv() => {
                 match cmd {
-                    AudioCommand::Exit => break,
+                    AudioCommand::Exit => {
+                        match sender.try_send(None){
+                            _ => (),
+                        };
+                        break;
+                    },
                     AudioCommand::Stop => {
                         if let Ok(sink) = sink.lock(){
                             sink.stop();
@@ -140,7 +150,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                     AudioCommand::Play(options)=>{
                         let s: Vec<&str>= options.iter().map(|s| s.as_str()).collect();
                         if let Ok(sink) = sink.lock(){
-                            handler.play_handle(&sink, s);
+                            sendprint(&sender,handler.play_handle(&sink, s));
                         }
                     },
                     AudioCommand::Shuffle=>{
@@ -149,16 +159,16 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                     },
                     AudioCommand::Skip=>{
                         if let Ok(sink) = sink.lock(){
-                            handler.skip_handle(&sink);
+                            sendprint(&sender, handler.skip_handle(&sink));
                         }
                     },
                     AudioCommand::Queue(song_opt)=>{
                         let s: Vec<&str>= song_opt.iter().map(|s| s.as_str()).collect();
                         match handler.queue_handle(s) {
                             Err(_) =>{
-                                println!("Could not find \"{}\". Verify it exists or path is correct\nIf you want to queue the default directory put \".\" as the path. ", song_opt.join(" "));
+                                sendprint(&sender, format!("Could not find \"{}\". Verify it exists or path is correct\nIf you want to queue the default directory put \".\" as the path. ", song_opt.join(" ")));
                             },
-                            _ => ()
+                            Ok(s) => sendprint(&sender, s),
                         }
                     },
                     AudioCommand::VolumeChanger(options)=>{
@@ -166,26 +176,31 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                             match options.first(){
                                 Some(op)=>{
                                     match op.as_str() {
-                                        "view" => println!("Playing at {:.0}", sink.volume() * 100.0 ),
+                                        "view" => {
+                                            let volume: f32 = sink.volume() as f32;
+                                            sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
+                                        },
                                         "set" => {
                                             if options.get(1).is_some(){
                                                 let val: Result<f32,_> = options.get(1).unwrap().parse();
                                                 match val{
-                                                    Err(_) => println!("Error: volume should be set to between 0 and 100"),
+                                                    Err(_) => {
+                                                        sendprint(&sender, "Error: volume should be set to between 0 and 100".to_string());
+                                                    },
                                                     Ok(volume) => {
                                                         if 0.0 <= volume && volume <= 100.0{
                                                             sink.set_volume(volume/100.0 as f32)
                                                         }
                                                         else{
-                                                            println!("Error: volume should be set to between 0 and 100")
+                                                            sendprint(&sender, "Error: volume should be set to between 0 and 100".to_string());
                                                         }
                                                     },
                                                 }
                                             }else{
-                                                println!("Error: volume should be set to between 0 and 100");
+                                                sendprint(&sender, "Error: volume should be set to between 0 and 100".to_string());
                                             }
                                             let volume: f32 = sink.volume() as f32;
-                                            println!("Volume is at {:.0}", 100.0 * volume);
+                                            sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         },
                                         "down" | "Down" => {
                                             let cur_volume = sink.volume();
@@ -196,7 +211,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                                 sink.set_volume(0.0);
                                             }
                                             let volume: f32 = sink.volume() as f32;
-                                            println!("Volume is at {:.0}", 100.0 * volume);
+                                            sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         }
                                         "up" | "Up" => {
                                             let cur_volume = sink.volume();
@@ -207,19 +222,23 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                                 sink.set_volume(1.0);
                                             }
                                             let volume: f32 = sink.volume() as f32;
-                                            println!("Volume is at {:.0}", 100.0 * volume);
+                                            sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         }
-                                        x => println!("Cannot find volume {}", x),
+                                        x => {
+                                            sendprint(&sender, format!("Cannot find volume {}", x));
+                                        },
                                     }
                                 }, 
-                                _ => println!("Requires second option"),
+                                _ =>{
+                                    sendprint(&sender, "Requires second option".to_string());
+                                } ,
                             }
                         }
                     }
                     AudioCommand::SetLoop(newloop)=>{
                         match newloop{
-                            Some(i)=> handler.loop_handle(&i),
-                            _ => println!("No Loop option asked for!")
+                            Some(i)=> sendprint(&sender, handler.loop_handle(&i)),
+                            _ => sendprint(&sender,"No Loop option asked for!".to_string())
                         }
                     }
                     AudioCommand::Restart=>{
@@ -228,15 +247,15 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                 sink.skip_one();
                                 let s = handler.cur_song.clone();
                                 match play_song(s.as_ref().unwrap(), &sink){
-                                    Ok(_)=> println!("Restarting"),
+                                    Ok(_)=> sendprint(&sender, "Restarting".to_string()),
                                     Err(_) =>{
                                         handler.cur_song = None;
-                                        println!("Error playing song :/")
+                                        sendprint(&sender,"Error playing song :/".to_string());
                                     }
                                 };
                             }
                             else{
-                                println!("No song to restart");
+                                sendprint(&sender,"No song to restart".to_string());
                             }
                         }
                     },
@@ -260,26 +279,26 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                             match options.first(){
                                 Some(op) => {
                                     match op.as_str(){
-                                        "view" => println!("Playing at {:.2}x speed", sink.speed()),
+                                        "view" => sendprint(&sender, format!("Playing at {:.2}x speed", sink.speed())),
                                         "set" => {
                                             if options.get(1).is_some(){
                                                 let val: Result<f32,_> = options.get(1).unwrap().parse();
                                                 match val{
-                                                    Err(_) => println!("Error: volume should be set to between 0 and 100"),
+                                                    Err(_) => sendprint(&sender, "Error: speed should be set to a number".to_string()),
                                                     Ok(speed) => {
                                                         if 0.01 <= speed{
                                                             sink.set_speed(speed);
                                                         }
                                                         else{
-                                                            println!("Error: volume should be set to between 0 and 100");
+                                                            sendprint(&sender, "Error: speed should be set to a number".to_string());
                                                         }
                                                     },
                                                 }
                                             }else{
-                                                println!("Error: volume should be set to between 0 and 100");
+                                                sendprint(&sender, "Error: speed should be set to a number".to_string());
                                             }
                                             let speed: f32 = sink.speed() as f32;
-                                            println!("Now at {:.2}x speed", speed);
+                                            sendprint(&sender, format!("Now at {:.2}x speed", speed));
                                         },
                                         "down" | "Down" => {
                                             let cur_speed = sink.speed();
@@ -290,15 +309,15 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                                                 sink.set_speed(0.01);
                                             }
                                             let speed: f32 = sink.speed();
-                                            println!("Now at {:.2}x speed", speed);
+                                            sendprint(&sender, format!("Now at {:.2}x speed", speed));
                                         }
                                         "up" | "Up" => {
                                             let cur_speed = sink.speed();
                                             sink.set_speed(cur_speed + 0.05);
                                             let speed: f32 = sink.speed();
-                                            println!("Now at {:.2}x speed", speed);
+                                            sendprint(&sender, format!("Now at {:.2}x speed", speed));
                                         }
-                                        x => println!("Cannot find speed {}", x)
+                                        x => sendprint(&sender, format!("Cannot find speed {}", x)),
                                     }
                                 },
                                 None => ()
@@ -306,24 +325,24 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>,_stream_handle: 
                         }
                     }
                     AudioCommand::Help=>{
-                        println!("Here is a comphrensive list of all the commands you can use!");
-                        println!("exit -> exits the program");
-                        println!("stop -> stops playing music, resets queue and song history");
-                        println!("pause -> pauses the music");
-                        println!("play -> plays the music");
-                        println!("play <file/directory> -> plays a file or directory as requested. It skips the current queue and is played immedaitely");
-                        println!("shuffle -> shuflles current queue");
-                        println!("skip -> skips current song");
-                        println!("queue [shuffle] <file/directory> -> queues a file or directory as requested. It places it at the end of the current queue. You can optionally add shuffle to shuffle the directory being queued");
-                        println!("volume view -> view volume 0 - 100");
-                        println!("volume set <number> -> sets volume to number (0-100)");
-                        println!("volume <up/down> -> move volume up or down");
-                        println!("loop <song/queue/cancel> -> set the loop option. loop song -> loop song only, loop queue -> loop song + queue, loop cancel =-> cancels all looping");
-                        println!("restart -> restarts current song from beginning");
-                        println!("back -> play previous song");
-                        println!("mute -> mute music");
-                        println!("unmute -> unmute music");
-                        println!("help -> Display help menu");
+                        sendprint(&sender, "Here is a comphrensive list of all the commands you can use!".to_string());
+                        sendprint(&sender, "exit -> exits the program".to_string());
+                        sendprint(&sender, "stop -> stops playing music, resets queue and song history".to_string());
+                        sendprint(&sender, "pause -> pauses the music".to_string());
+                        sendprint(&sender, "play -> plays the music".to_string());
+                        sendprint(&sender, "play <file/directory> -> plays a file or directory as requested. It skips the current queue and is played immedaitely".to_string());
+                        sendprint(&sender, "shuffle -> shuflles current queue".to_string());
+                        sendprint(&sender, "skip -> skips current song".to_string());
+                        sendprint(&sender, "queue [shuffle] <file/directory> -> queues a file or directory as requested. It places it at the end of the current queue. You can optionally add shuffle to shuffle the directory being queued".to_string());
+                        sendprint(&sender, "volume view -> view volume 0 - 100".to_string());
+                        sendprint(&sender, "volume set <number> -> sets volume to number (0-100)".to_string());
+                        sendprint(&sender, "volume <up/down> -> move volume up or down".to_string());
+                        sendprint(&sender, "loop <song/queue/cancel> -> set the loop option. loop song -> loop song only, loop queue -> loop song + queue, loop cancel =-> cancels all looping".to_string());
+                        sendprint(&sender, "restart -> restarts current song from beginning".to_string());
+                        sendprint(&sender, "back -> play previous song".to_string());
+                        sendprint(&sender, "mute -> mute music".to_string());
+                        sendprint(&sender, "unmute -> unmute music".to_string());
+                        sendprint(&sender, "help -> Display help menu".to_string());
                     }
                 }
             }

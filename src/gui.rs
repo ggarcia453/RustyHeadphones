@@ -17,6 +17,7 @@ struct RustyHeadphonesGUI{
 impl RustyHeadphonesGUI{
     fn new(_ctx : &eframe::CreationContext<'_>, ppath: String) -> Self{
         let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
+        let (txx, _rxx):(Sender<Option<String>>, Receiver<Option<String>>) = mpsc::channel(32);
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let stream_handle = Arc::new(Mutex::new(stream_handle));
         let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle.lock().unwrap()).unwrap()));
@@ -24,7 +25,7 @@ impl RustyHeadphonesGUI{
             let stream_handle = stream_handle.clone();
             let sink = sink.clone();
             async move {
-                player_thread(rx, stream_handle, sink, ppath).await;
+                player_thread(rx, txx, stream_handle, sink, ppath).await;
             }
         });
         Self{

@@ -7,6 +7,13 @@ use std::sync::{Arc, Mutex};
 use crate::backend::AudioCommand;
 use crate::backend::player_thread;
 use crate::helpers;
+use std::io::{stdout, Write};
+use crossterm::{
+    cursor,
+    terminal::{Clear, ClearType},
+    QueueableCommand,
+    ExecutableCommand,
+};
 
 pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineError>{
     dotenv().ok();
@@ -19,6 +26,7 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
     }
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
+    let (txx,mut rxx):(Sender<Option<String>>, Receiver<Option<String>>) = mpsc::channel(32);
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let stream_handle = Arc::new(Mutex::new(stream_handle));
     let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle.lock().unwrap()).unwrap()));
@@ -26,7 +34,29 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
         let stream_handle = stream_handle.clone();
         let sink = sink.clone();
         async move {
-            player_thread(rx, stream_handle, sink, pptath).await;
+            player_thread(rx, txx, stream_handle, sink, pptath).await;
+        }
+    });
+    let printer_task = tokio::spawn(async move {
+        while let Some(response) = rxx.recv().await {
+            match response {
+                Some(s) => {
+                    if !s.is_empty(){
+                        for i in s.split("\n"){
+                            println!();
+                            stdout().execute(cursor::SavePosition).unwrap();
+                            stdout()
+                                .queue(cursor::MoveUp(1)).unwrap()
+                                .queue(Clear(ClearType::CurrentLine)).unwrap();
+                            println!("{}", i);
+                            stdout().execute(cursor::RestorePosition).unwrap();
+                        }
+                        print!(">>");
+                        stdout().flush().unwrap();
+                    }
+                },
+                None=> break,
+            }
         }
     });
     println!("Welcome to RustyHeadphones! For help on how to use it use the help command or reference the README :)");
@@ -141,6 +171,9 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
     }
     if let Err(e) = audio_handle.await {
         println!("Audio thread error: {}", e);
+    }
+    if let Err(e) = printer_task.await{
+        println!("Printer thread error: {}", e);
     }
     println!("Goodbye! :)");
     rl.append_history("history.txt")

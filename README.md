@@ -66,6 +66,6 @@ Features planning to be added
 
 # Known Issues
 This is a list of known issues currently with RustyHeadphones.
-1. Printing Errors (Output does not print as intended).
+1. Printing Errors (if output prints prompt line clears).
 2. Decoding errors with certain mp3 files.
 3. Audio player glitches if computer enters sleep mode and must be reset.
