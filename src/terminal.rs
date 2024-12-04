@@ -41,7 +41,7 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
         while let Some(response) = rxx.recv().await {
             match response {
                 Some(s) => {
-                    if !s.is_empty(){
+                    if !s.is_empty() && s != (String::from("  ")){
                         for i in s.split("\n"){
                             println!();
                             stdout().execute(cursor::SavePosition).unwrap();

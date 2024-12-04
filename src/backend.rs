@@ -53,6 +53,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
             _ = sleep(Duration::from_secs(1)) => {
                 if let Ok(sink) = sink.lock() {
                     if sink.empty(){
+                        sendprint(&sender, String::from("  "));
                         if handler.cur_song.is_some(){
                             handler.stack.push(handler.cur_song.as_ref().unwrap().clone());
                         }
@@ -120,7 +121,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                 }
                             },
                         }
-                        if handler.cur_song.as_ref().is_some() &&  handler.islooping != operations::Loop::LoopSong{
+                        if handler.cur_song.as_ref().is_some(){
                             sendprint(&sender,format!("Now Playing {}", handler.cur_song.as_ref().unwrap().clone()) );
                         }
                     }
