@@ -15,6 +15,12 @@ pub enum Loop{
     LoopSong
 }
 
+impl std::fmt::Display for Loop{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 unsafe impl Send for Loop {
     
 }
@@ -141,6 +147,9 @@ impl Handler{
             "cancel" | "Cancel" => {
                 self.islooping = Loop::NoLoop;
                 "No longer looping".to_string()
+            }
+            "view" =>{
+                format!("Current Loop option is {}", self.islooping)
             }
             _ => "Not a valid loop option.".to_string()
         }

@@ -53,6 +53,10 @@ impl Highlighter for HeadphoneHelper {}
 impl Validator for HeadphoneHelper {}
 impl Helper for HeadphoneHelper{}
 
+fn validfile(s:&str)-> bool{
+    (s.contains(".") && is_music_file(s)) || !s.contains(".")
+}
+
 impl Completer for HeadphoneHelper{
     type Candidate = rustyline::completion::Pair;
     fn complete(
@@ -65,7 +69,7 @@ impl Completer for HeadphoneHelper{
             let input = &line[start..pos];
             if line.contains(char::is_whitespace){
                 if line.starts_with("loop"){
-                    let options:Vec<String> = vec!["song", "queue", "cancel"].into_iter().map(|s|s.to_string()).collect();
+                    let options:Vec<String> = vec!["song", "queue", "cancel", "view"].into_iter().map(|s|s.to_string()).collect();
                     let partners:Vec<Pair> = options.iter().filter(|cmd| cmd.starts_with(input))
                     .map(|cmd| rustyline::completion::Pair {
                         display: cmd.clone(),
@@ -99,13 +103,13 @@ impl Completer for HeadphoneHelper{
                         .collect();
                         filename_completions.extend(ff);
                     }
-                    Ok((new_pos, filename_completions))
+                    Ok((new_pos, filename_completions.into_iter().filter(|x|validfile(&x.display)).collect()))
                 }
                 else if line.starts_with("play") && !is_music_file(line){
                     let path = &self.musicpath;
                     env::set_current_dir(path)?;
                     let (new_pos, filename_completions) = self.filenames.complete(line, pos, ctx)?;
-                    Ok((new_pos, filename_completions))
+                    Ok((new_pos, filename_completions.into_iter().filter(|x|validfile(&x.display)).collect()))
                 }
                 else{
                     Ok((start, Vec::new()))

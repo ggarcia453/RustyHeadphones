@@ -30,7 +30,7 @@ The following section details how to use RustyHeadphones once all requirements h
 The default path will be set to the working directory if no path is supplied. You can supply a path by doing
 ```
 cargo run -- --defpath "insert path"
-RustyHeadphones -- --defpath "insert path"
+rustyheadphones --defpath "insert path"
 ```
 ## Commands
 You can find a list of commands below. For reference ```[a]``` indicates an optional argument "a", while ```(b)``` indicates a required argument "b".
@@ -48,6 +48,7 @@ You can find a list of commands below. For reference ```[a]``` indicates an opti
 | volume set (number) | Volume sets a new volume, which must be between 0 - 100.|
 | volume (up/down) | Move the volume up or down as requested.|
 | loop (song/queue/cancel) | This sets the looping option for the player. Loop song will loop the current/next song. Loop Queue will loop the current queue. Loop cancel will cancel all looping.|
+| loop view | view loop option.|
 | restart | Restarts the current song.|
 | back | Plays the previous song.|
 | mute | Mute the audio player.|
