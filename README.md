@@ -1,7 +1,7 @@
 # Overview 
 Welcome to Rusty Headphones! This is a terminal based audio player created by me in Rust. It allows you to play local audio files from the terminal with all of the functionality of an audio player such as Groovy or Spotify. 
 # Setup 
-To setup rusty headphones, we have provided a setup shell script. Here you can enter a working directory that serves as the default for your music libraries. From there, RustyHeadphones will be installed and you can begin using it 
+To setup rusty headphones, we have provided a setup shell script. From there, RustyHeadphones will be installed and you can begin using it.
 # Libraries
 This is a list of installed libarires needed for the rust crate 
 <a href ="https://docs.rs/rodio/latest/rodio/" target="_blank">rodio</a>
@@ -27,8 +27,11 @@ There are also some libraries needed for the rust crate
 # Users Guide
 The following section details how to use RustyHeadphones once all requirements have been installed and configured. 
 ## Default Path 
-The default path can be configured with either the ```setup.sh``` script or manually by editing .env. If you choose not
-to use the .env file or if you cargo install Rustyheadphones it will default to the current working directory. 
+The default path will be set to the working directory if no path is supplied. You can supply a path by doing
+```
+cargo run -- --defpath "insert path"
+RustyHeadphones -- --defpath "insert path"
+```
 ## Commands
 You can find a list of commands below. For reference ```[a]``` indicates an optional argument "a", while ```(b)``` indicates a required argument "b".
 |Command     |Action     |

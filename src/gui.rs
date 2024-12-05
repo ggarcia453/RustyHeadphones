@@ -2,7 +2,6 @@ use rodio::OutputStreamHandle;
 use rodio::{OutputStream, Sink};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{self, Sender, Receiver};
-use dotenv::dotenv;
 use crate::backend::AudioCommand;
 use crate::backend::player_thread;
 use crate::operations::is_music_file;
@@ -169,14 +168,7 @@ impl eframe::App for RustyHeadphonesGUI{
 }
 
 pub async fn gui_main(defpath:String, _token:String) -> Result<(), eframe::Error>{
-    dotenv().ok();
-    let path :String; 
-    if let Ok(result) = std::env::var("MUSICPATH") {
-        path = result;
-    }
-    else{
-        path = defpath;
-    }
+    let path :String = defpath;
     let ppath = path.clone();
     let options = eframe::NativeOptions::default();
     eframe::run_native("RustyHeadphonesGUI", options, 

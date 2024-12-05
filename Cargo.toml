@@ -4,13 +4,11 @@ version = "2.0.0"
 edition = "2021"
 
 [dependencies]
-dotenv = "0.15.0"
 rodio = "0.19.0"
 tokio = {version="1.40.0", features=["full"]}
 walkdir = "2.5.0"
 rand = "*"
 rustyline = "14.0.0"
-rust_spotify_web_playback_sdk = { git = "https://github.com/KOEGlike/rust_spotify_web_playback_sdk" }
 clap = { version = "4.0", features = ["derive"] }
 egui = "0.26.2"
 eframe = { version = "0.26.2", default-features = false, features = [

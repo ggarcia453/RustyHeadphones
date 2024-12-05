@@ -1,5 +1,4 @@
 use rodio::{OutputStream, Sink};
-use dotenv::dotenv;
 use rustyline::{CompletionType, Config, Editor};
 use rustyline::error::ReadlineError;
 use tokio::sync::mpsc::{self, Sender, Receiver};
@@ -16,14 +15,7 @@ use crossterm::{
 };
 
 pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineError>{
-    dotenv().ok();
-    let path :String; 
-    if let Ok(result) = std::env::var("MUSICPATH") {
-        path = result;
-    }
-    else{
-        path = defpath;
-    }
+    let path :String = defpath;
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
     let (txx,mut rxx):(Sender<Option<String>>, Receiver<Option<String>>) = mpsc::channel(32);
