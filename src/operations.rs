@@ -45,45 +45,76 @@ impl Handler{
             defpath: m
         }
     }
-    pub fn queue_handle(& mut self, s : Vec<&str>) -> Result<String, ()>{
-        let filterds: Vec<&str> = s.into_iter().filter(|&i | i != "").collect();
-        if (filterds.len() > 0) & (filterds.clone().into_iter().nth(0) != Some("")) {
-            match filterds.clone().get(0) {
-                Some(&"view") => {
-                    match &self.cur_song.clone() {
-                        Some(song) => {
-                            let mut return_string :String = "".to_string();
-                            return_string.push_str(&format!("Currently Playing {}\nUp next -> ", song));
-                            if &self.islooping == &Loop::LoopSong{
-                                return_string= return_string + "the same song :)\nAfter ->";
-                            }
-                            for i in self.queue.clone(){
-                                return_string = format!("{}{}\n", return_string, i);    
-                            }
-                            Ok(return_string.trim().to_string())
-                        },
-                        None => Ok("No song is playing right now".to_string()),
+    pub fn queue_handle(& mut self, s : String) -> Result<String, ()>{
+        if s.starts_with("view"){
+            match &self.cur_song.clone() {
+                Some(song) => {
+                    let mut return_string :String = "".to_string();
+                    return_string.push_str(&format!("Currently Playing {}\nUp next -> ", song));
+                    if &self.islooping == &Loop::LoopSong{
+                        return_string= return_string + "the same song :)\nAfter ->";
                     }
+                    for i in self.queue.clone(){
+                        return_string = format!("{}{}\n", return_string, i);    
+                    }
+                    Ok(return_string.trim().to_string())
                 },
-                Some(&"shuffle") => {
-                    let news:Vec<&str> = filterds.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
-                    self.queue_folder(news.join(" "), true)
-                },
-                Some(_) => {
-                    let mut request = filterds.clone().into_iter();
-                    if request.any(|x |is_music_file(x)){
-                        self.queue_file( filterds.join(" "))
-                    }
-                    else{
-                        self.queue_folder(filterds.join(" "), false)
-                    }
-                }
-                _ => Err(()),
+                None => Ok("No song is playing right now".to_string()),
             }
         }
-        else{
+        else if s.starts_with("shuffle"){
+            let news = s.strip_prefix("shuffle").unwrap_or("").to_owned();
+            self.queue_folder(news, true)
+        }
+        else if s.len() < 1 {
             Err(())
         }
+        else{
+            if is_music_file(&s){
+                self.queue_file(s)
+            }
+            else{
+                self.queue_folder(s, false)
+            }
+        }
+        // let filterds: Vec<&str> = s.into_iter().filter(|&i | i != "").collect();
+        // if (filterds.len() > 0) & (filterds.clone().into_iter().nth(0) != Some("")) {
+        //     match filterds.clone().get(0) {
+        //         Some(&"view") => {
+        //             match &self.cur_song.clone() {
+        //                 Some(song) => {
+        //                     let mut return_string :String = "".to_string();
+        //                     return_string.push_str(&format!("Currently Playing {}\nUp next -> ", song));
+        //                     if &self.islooping == &Loop::LoopSong{
+        //                         return_string= return_string + "the same song :)\nAfter ->";
+        //                     }
+        //                     for i in self.queue.clone(){
+        //                         return_string = format!("{}{}\n", return_string, i);    
+        //                     }
+        //                     Ok(return_string.trim().to_string())
+        //                 },
+        //                 None => Ok("No song is playing right now".to_string()),
+        //             }
+        //         },
+        //         Some(&"shuffle") => {
+        //             let news:Vec<&str> = filterds.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
+        //             self.queue_folder(news.join(" "), true)
+        //         },
+        //         Some(_) => {
+        //             let mut request = filterds.clone().into_iter();
+        //             if request.any(|x |is_music_file(x)){
+        //                 self.queue_file( filterds.join(" "))
+        //             }
+        //             else{
+        //                 self.queue_folder(filterds.join(" "), false)
+        //             }
+        //         }
+        //         _ => Err(()),
+        //     }
+        // }
+        // else{
+        //     Err(())
+        // }
     }
     fn queue_file(& mut self,  s: String)-> Result<String,()>{
         let s = s.replace("\"", "");
@@ -154,19 +185,24 @@ impl Handler{
             _ => "Not a valid loop option.".to_string()
         }
     }   
-    pub fn play_handle(& mut self, sink : &Sink, s: Vec<&str>)-> String {
-        if s.is_empty(){
+    pub fn play_handle(& mut self, sink : &Sink, s: Option<String>)-> String {
+        if s.is_none(){
             sink.play();
             String::new()
         }
         else {
             let mut temp: Vec<String> = self.queue.clone();
             self.queue.clear();
-            let res = self.queue_handle(s.clone());
+            let c = s.as_ref().unwrap().clone();
+            if c == "".to_string(){
+                sink.play();
+                return String::new();
+            }
+            let res = self.queue_handle(s.unwrap());
             self.queue.append(&mut temp);
             match res{
                 Err(_) => {
-                    format!("Could not play {}. Verify it exists or path exists", s.join(" "))
+                    format!("Could not play {}. Verify it exists or path exists", c)
                 },
                 Ok(s)=>{
                     sink.skip_one();

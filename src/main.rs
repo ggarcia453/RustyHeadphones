@@ -34,10 +34,10 @@ impl Error for ModeError {}
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let args = ArgumentTracker::parse();
     if args.mode.is_empty()  || args.mode == "terminal"{
-        terminal::terminal_main(args.defpath, args.token).await.map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+        terminal::terminal_main(args.defpath).await.map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
     }
     else if args.mode == "gui"{
-        gui::gui_main(args.defpath,args.token).await.map_err(|e |Box::new(e) as Box<dyn std::error::Error>)
+        gui::gui_main(args.defpath).await.map_err(|e |Box::new(e) as Box<dyn std::error::Error>)
     }
     else{
         Err(Box::new(ModeError {

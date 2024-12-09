@@ -11,12 +11,12 @@ use rand::prelude::SliceRandom;
 
 #[derive(Debug, Clone)]
 pub enum AudioCommand {
-    Play(Vec<String>),
+    Play(Option<String>),
     Pause,
     Stop,
     Skip,
     Back,
-    Queue(Vec<String>),
+    Queue(String),
     Shuffle,
     VolumeChanger(Vec<String>),
     Mute,
@@ -149,9 +149,8 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                         }
                     },
                     AudioCommand::Play(options)=>{
-                        let s: Vec<&str>= options.iter().map(|s| s.as_str()).collect();
                         if let Ok(sink) = sink.lock(){
-                            sendprint(&sender,handler.play_handle(&sink, s));
+                            sendprint(&sender,handler.play_handle(&sink, options));
                         }
                     },
                     AudioCommand::Shuffle=>{
@@ -164,10 +163,10 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                         }
                     },
                     AudioCommand::Queue(song_opt)=>{
-                        let s: Vec<&str>= song_opt.iter().map(|s| s.as_str()).collect();
-                        match handler.queue_handle(s) {
+                        let c = song_opt.clone();
+                        match handler.queue_handle(song_opt) {
                             Err(_) =>{
-                                sendprint(&sender, format!("Could not find \"{}\". Verify it exists or path is correct\nIf you want to queue the default directory put \".\" as the path. ", song_opt.join(" ")));
+                                sendprint(&sender, format!("Could not find \"{}\". Verify it exists or path is correct\nIf you want to queue the default directory put \".\" as the path. ", c));
                             },
                             Ok(s) => sendprint(&sender, s),
                         }

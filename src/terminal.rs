@@ -14,7 +14,7 @@ use crossterm::{
     ExecutableCommand,
 };
 
-pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineError>{
+pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
     let path :String = defpath;
     let pptath = path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
@@ -62,76 +62,32 @@ pub async fn terminal_main(defpath:String, token:String) -> Result<(), ReadlineE
     rl.set_helper(Some(h));
     let _ =  rl.load_history("history.txt");
     loop {
-        let p = format!(">>");
+        let p = String::from(">>");
         let readline = rl.readline(&p);
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
                 let command = line.trim().to_string();
                 let tx = tx.clone();
-                let s:Vec<&str>  = command.split(" ").collect();
-                let command = match s.clone().get(0) {
-                    Some(&"exit") =>{
-                        Some(AudioCommand::Exit)
-                    },
-                    Some(&"stop")=>
-                        Some(AudioCommand::Stop)
-                    ,
-                    Some(&"pause")=>{
-                        Some(AudioCommand::Pause)
-                    },
-                    Some(&"play")=>{
-                        Some(AudioCommand::Play(s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e.to_owned()).collect()))
-                    }
-                    Some(&"shuffle")=>{
-                        Some(AudioCommand::Shuffle)
-                    },
-                    Some(&"skip") =>{
-                        Some(AudioCommand::Skip)
-                    },
-                    Some(&"queue") =>{
-                        Some(AudioCommand::Queue(s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e.to_owned()).collect()))
-                    },
-                    Some(&"volume")=>{
-                        Some(AudioCommand::VolumeChanger(s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e.to_owned()).collect()))
-                    }
-                    Some(&"loop")=>{
-                        Some(AudioCommand::SetLoop(s.get(1).map(|&x| x.to_string())))
-                    },
-                    Some(&"restart")=>{
-                        Some(AudioCommand::Restart)
-                    }
-                    Some(&"back")=>{
-                        Some(AudioCommand::Back)
-                    },
-                    Some(&"mute")=>{
-                        Some(AudioCommand::Mute)
-                    },
-                    Some(&"unmute")=>{
-                        Some(AudioCommand::Unmute)
-                    },
-                    Some(&"help")=>{
-                        Some(AudioCommand::Help)
-                    },
-                    Some(&"spotify")=>{
-                        if token.is_empty(){
-                            println!("YOu need to pass in a token");
-                            None
-                        }
-                        else{
-                            println!("SPotify Setup");
-                            None
-                        }
-                    },
-                    Some(&"speed")=>{
-                        Some(AudioCommand::SetSpeed(s.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e.to_owned()).collect()))
-                    }
-                    _ => {
-                        println!("Testing: Cannot do {} right now", &s.join(" "));
-                        None
-                    },
+                let cmd = match command.split_once(' ').unwrap_or((&command, "")) {
+                    ("exit", _) => Some(AudioCommand::Exit),
+                    ("stop", _) => Some(AudioCommand::Stop),
+                    ("pause", _) => Some(AudioCommand::Pause),
+                    ("play", arg) => Some(AudioCommand::Play(if arg.is_empty() { None } else { Some(arg.to_string()) })),
+                    ("shuffle", _) => Some(AudioCommand::Shuffle),
+                    ("skip", _) => Some(AudioCommand::Skip),
+                    ("queue", arg) => Some(AudioCommand::Queue(arg.to_owned())),
+                    ("volume", _) => Some(AudioCommand::VolumeChanger(Vec::new())),
+                    ("loop", arg) => Some(AudioCommand::SetLoop(if arg.is_empty() { None } else { Some(arg.to_string()) })),
+                    ("restart", _) => Some(AudioCommand::Restart),
+                    ("back", _) => Some(AudioCommand::Back),
+                    ("mute", _) => Some(AudioCommand::Mute),
+                    ("unmute", _) => Some(AudioCommand::Unmute),
+                    ("help", _) => Some(AudioCommand::Help),
+                    ("speed", _) => Some(AudioCommand::SetSpeed(Vec::new())),
+                    _ => None,
                 };
-                if let Some(cmd) = command{
+                if let Some(cmd) = cmd{
                     let tx = tx.clone();
                     let cmd_copy = cmd.clone();
                     if let Err(e) = tx.try_send(cmd_copy){

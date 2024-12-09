@@ -93,18 +93,17 @@ impl eframe::App for RustyHeadphonesGUI{
                     if self.pathqueue.is_some(){
                         if self.shuffle && self.file_or_folder{
                             let f = "shuffle ".to_owned() + self.pathqueue.as_ref().unwrap();
-                            self.send(AudioCommand::Queue(f.split_whitespace().map(str::to_string).collect())) ;
+                            self.send(AudioCommand::Queue(f));
                         }
                         else{
-                            let r = self.pathqueue.as_ref().unwrap().split_whitespace().map(str::to_string).collect();
-                            self.send(AudioCommand::Queue(r));
+                            self.send(AudioCommand::Queue(self.pathqueue.as_ref().unwrap().to_owned()));
                         }
                     }
                     self.pathqueue = None;
                 }
                 if ui.button("Play").clicked(){
                     if self.pathqueue.is_some(){
-                        self.send(AudioCommand::Play(self.pathqueue.as_ref().unwrap().split_whitespace().map(str::to_string).collect()));
+                        self.send(AudioCommand::Play(Some(self.pathqueue.as_ref().unwrap().to_owned())));
                     }
                     self.pathqueue = None;
                 }
@@ -149,7 +148,7 @@ impl eframe::App for RustyHeadphonesGUI{
                         true => {
                         },
                         false => {
-                            self.send(AudioCommand::Play(Vec::new()));
+                            self.send(AudioCommand::Play(None));
                             self.isplaying = !self.isplaying;
                         },
                     }
@@ -181,7 +180,7 @@ impl eframe::App for RustyHeadphonesGUI{
     }
 }
 
-pub async fn gui_main(defpath:String, _token:String) -> Result<(), eframe::Error>{
+pub async fn gui_main(defpath:String) -> Result<(), eframe::Error>{
     let path :String = defpath;
     let ppath = path.clone();
     let options = eframe::NativeOptions::default();
