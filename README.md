@@ -26,13 +26,15 @@ There are also some libraries needed for the rust crate
 
 # Users Guide
 The following section details how to use RustyHeadphones once all requirements have been installed and configured. 
-## Default Path 
+
+## Terminal Mode
+### Default Path 
 The default path will be set to the working directory if no path is supplied. You can supply a path by doing
 ```
 cargo run -- --defpath "insert path"
 rustyheadphones --defpath "insert path"
 ```
-## Commands
+### Commands
 You can find a list of commands below. For reference ```[a]``` indicates an optional argument "a", while ```(b)``` indicates a required argument "b".
 |Command     |Action     |
 |:------------|:------------|
@@ -53,7 +55,7 @@ You can find a list of commands below. For reference ```[a]``` indicates an opti
 | back | Plays the previous song.|
 | mute | Mute the audio player.|
 | unmute | Unmute the audio player.|
-| volume set (number) | Will set the speed of the player to whatever new speed is.|
+| speed set (number) | Will set the speed of the player to whatever new speed is.|
 | speed (up/down) | This moves the speed up or down as requested.|
 | speed view | This will print the current speed.|
 | help | This will print the help version of the command list.|
@@ -61,16 +63,17 @@ You can find a list of commands below. For reference ```[a]``` indicates an opti
 
 You can also use help in RustyHeadphones to view a condensed version of the commands and their actions. 
 
+## GUI mode
+Coming...
+
 # Features to be added
 Features planning to be added
 1. Setting default path outside of .env
 2. Integrate song streaming with Spotify or some other service
-3. GUI mode
-4. Integrate support for more file formats (ex. m4a)
+3. Integrate support for more file formats (ex. m4a)
 
 # Known Issues
 This is a list of known issues currently with RustyHeadphones.
-1. FIles with more than 1 space are unplayable.
-2. Printing Errors (if output prints prompt line clears).
-3. Decoding errors with certain mp3 files.
-4. Audio player glitches if computer enters sleep mode and must be reset.
+1. Printing Errors (if output prints prompt line clears).
+2. Decoding errors with certain mp3 files.
+3. Audio player glitches if computer enters sleep mode and must be reset.

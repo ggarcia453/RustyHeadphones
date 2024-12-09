@@ -73,20 +73,18 @@ impl eframe::App for RustyHeadphonesGUI{
                     ui.label("None");
                 }
                 if ui.button("Grab File").clicked(){
-                    if self.file_or_folder{
-                        if let Some(path) = FileDialog::new().set_directory(self.defpath.clone()).pick_folder() {
-                            self.pathqueue = Some(path.display().to_string());
-                        }
-                    }
-                    else{
-                        if let Some(path) = FileDialog::new().set_directory(self.defpath.clone()).pick_file() {
-                            self.pathqueue = Some(path.display().to_string());
-                        }
+                    if let Some(path) = FileDialog::new().set_directory(self.defpath.clone()).pick_file() {
+                        self.pathqueue = Some(path.display().to_string());
+                        self.file_or_folder = false;
                     }
                 }
-                if self.file_or_folder{
-                    ui.checkbox(& mut self.shuffle, "Shuffle?");
+                if ui.button("Grab Folder").clicked(){
+                    if let Some(path) = FileDialog::new().set_directory(self.defpath.clone()).pick_folder() {
+                        self.pathqueue = Some(path.display().to_string());
+                        self.file_or_folder = true;
+                    }
                 }
+                ui.checkbox(& mut self.shuffle, "Shuffle?");
             });
             ui.horizontal(|ui|{
                 if ui.button("Queue").clicked(){
@@ -120,6 +118,9 @@ impl eframe::App for RustyHeadphonesGUI{
                         }
                         else if (&k).starts_with("Now Playing ") && !(&k).contains("\n"){
                             self.feedback = Some(k);
+                        }
+                        else{
+                            print!("{}", k);
                         }
                     }
                 },

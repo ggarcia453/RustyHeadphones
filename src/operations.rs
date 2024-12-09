@@ -62,8 +62,9 @@ impl Handler{
                 None => Ok("No song is playing right now".to_string()),
             }
         }
-        else if s.starts_with("shuffle"){
-            let news = s.strip_prefix("shuffle").unwrap_or("").to_owned();
+        else if s.starts_with("shuffle "){
+            let news = s.strip_prefix("shuffle ").unwrap_or("").to_owned();
+            println!("{news}");
             self.queue_folder(news, true)
         }
         else if s.len() < 1 {
@@ -77,44 +78,6 @@ impl Handler{
                 self.queue_folder(s, false)
             }
         }
-        // let filterds: Vec<&str> = s.into_iter().filter(|&i | i != "").collect();
-        // if (filterds.len() > 0) & (filterds.clone().into_iter().nth(0) != Some("")) {
-        //     match filterds.clone().get(0) {
-        //         Some(&"view") => {
-        //             match &self.cur_song.clone() {
-        //                 Some(song) => {
-        //                     let mut return_string :String = "".to_string();
-        //                     return_string.push_str(&format!("Currently Playing {}\nUp next -> ", song));
-        //                     if &self.islooping == &Loop::LoopSong{
-        //                         return_string= return_string + "the same song :)\nAfter ->";
-        //                     }
-        //                     for i in self.queue.clone(){
-        //                         return_string = format!("{}{}\n", return_string, i);    
-        //                     }
-        //                     Ok(return_string.trim().to_string())
-        //                 },
-        //                 None => Ok("No song is playing right now".to_string()),
-        //             }
-        //         },
-        //         Some(&"shuffle") => {
-        //             let news:Vec<&str> = filterds.into_iter().enumerate().filter(|&(i, _)| i >0 ).map(|(_, e)| e).collect();
-        //             self.queue_folder(news.join(" "), true)
-        //         },
-        //         Some(_) => {
-        //             let mut request = filterds.clone().into_iter();
-        //             if request.any(|x |is_music_file(x)){
-        //                 self.queue_file( filterds.join(" "))
-        //             }
-        //             else{
-        //                 self.queue_folder(filterds.join(" "), false)
-        //             }
-        //         }
-        //         _ => Err(()),
-        //     }
-        // }
-        // else{
-        //     Err(())
-        // }
     }
     fn queue_file(& mut self,  s: String)-> Result<String,()>{
         let s = s.replace("\"", "");
@@ -134,16 +97,11 @@ impl Handler{
         }
     }
     fn queue_folder(& mut self,  s:String, shuffle : bool) -> Result<String, ()>{
-        let path:String;
-        if !Path::new(&s).is_dir(){
-            path = (self.defpath.clone() + &s).replace("\\", "");
-        }
-        else{
-            path = s.clone().replace("\\", "");
-        }
-        if Path::new(&path).is_dir() && &s != ""{
+        let s = s.replace("\"", "");
+        let p = Path::new(&s);
+        if p.exists(){
             let mut rs = String::new();
-            let files_and_stuff = WalkDir::new(&path);
+            let files_and_stuff = WalkDir::new(&p);
             for file in files_and_stuff{
                 let fpath = file.as_ref().unwrap().path().to_str().unwrap();
                 if Path::new(fpath).is_file() && is_music_file(fpath){
@@ -161,9 +119,40 @@ impl Handler{
                 self.queue.shuffle(& mut rng);
             }
             Ok(rs)
-        }else{
+        }
+        else{
             Err(())
         }
+        // let path:String;
+        // if !Path::new(&s).is_dir(){
+        //     path = (self.defpath.clone() + &s).replace("\\", "");
+        // }
+        // else{
+        //     path = s.clone().replace("\\", "");
+        // }
+        // if Path::new(&path).is_dir() && &s != ""{
+        //     let mut rs = String::new();
+        //     let files_and_stuff = WalkDir::new(&path);
+        //     for file in files_and_stuff{
+        //         let fpath = file.as_ref().unwrap().path().to_str().unwrap();
+        //         if Path::new(fpath).is_file() && is_music_file(fpath){
+        //             self.queue.push(fpath.to_owned());
+        //             if rs.is_empty(){
+        //                 rs = format!("Queued {}", fpath.to_owned())
+        //             }
+        //             else{
+        //                 rs = format!("{rs}\nQueued {}", fpath.to_owned());
+        //             }
+        //         }
+        //     }
+        //     if shuffle{
+        //         let mut rng = thread_rng();
+        //         self.queue.shuffle(& mut rng);
+        //     }
+        //     Ok(rs)
+        // }else{
+        //     Err(())
+        // }
     }
     pub fn loop_handle(& mut self, s : &str) -> String{
         match s {
