@@ -77,14 +77,15 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
                     ("shuffle", _) => Some(AudioCommand::Shuffle),
                     ("skip", _) => Some(AudioCommand::Skip),
                     ("queue", arg) => Some(AudioCommand::Queue(arg.to_owned())),
-                    ("volume", _) => Some(AudioCommand::VolumeChanger(Vec::new())),
+                    ("volume", arg) => Some(AudioCommand::VolumeChanger(arg.split_whitespace().map(|e| e.to_owned()).collect())),
                     ("loop", arg) => Some(AudioCommand::SetLoop(if arg.is_empty() { None } else { Some(arg.to_string()) })),
                     ("restart", _) => Some(AudioCommand::Restart),
                     ("back", _) => Some(AudioCommand::Back),
                     ("mute", _) => Some(AudioCommand::Mute),
                     ("unmute", _) => Some(AudioCommand::Unmute),
                     ("help", _) => Some(AudioCommand::Help),
-                    ("speed", _) => Some(AudioCommand::SetSpeed(Vec::new())),
+                    ("speed", arg) => Some(AudioCommand::SetSpeed(arg.split_whitespace().map(|e| e.to_owned()).collect()))
+                    ,
                     _ => None,
                 };
                 if let Some(cmd) = cmd{
