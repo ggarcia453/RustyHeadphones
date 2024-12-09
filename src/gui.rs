@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use crate::backend::AudioCommand;
 use crate::backend::player_thread;
-use crate::operations::is_music_file;
+use rfd::FileDialog;
 
 struct RustyHeadphonesGUI{
     tx :Sender<AudioCommand>,
@@ -12,8 +12,10 @@ struct RustyHeadphonesGUI{
     sink : Arc<std::sync::Mutex<Sink>>,
     _stream : OutputStream, 
     _stream_handle: Arc<Mutex<OutputStreamHandle>>,
-    filename: String,
-    playing : String,
+    defpath: String, 
+    pathqueue: Option<String>,
+    file_or_folder:bool,
+    feedback : Option<String>,
     shuffle: bool,
     loophandle: usize,
     isplaying:bool,
@@ -26,6 +28,7 @@ impl RustyHeadphonesGUI{
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let stream_handle = Arc::new(Mutex::new(stream_handle));
         let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle.lock().unwrap()).unwrap()));
+        let defpath = ppath.clone();
         tokio::spawn({
             let stream_handle = stream_handle.clone();
             let sink = sink.clone();
@@ -39,8 +42,10 @@ impl RustyHeadphonesGUI{
             sink,
             _stream,
             _stream_handle :stream_handle,
-            filename : "".to_string(),
-            playing: String::from("Now Playing ___"),
+            defpath,
+            pathqueue : None,
+            file_or_folder: false,
+            feedback: None,
             shuffle : false,
             loophandle: 0,
             isplaying:true
@@ -60,46 +65,62 @@ impl eframe::App for RustyHeadphonesGUI{
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
-                let la = ui.label("File to queue:");
-                let response = ui.add(egui::TextEdit::singleline(&mut self.filename)).labelled_by(la.id);
-                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    if self.shuffle && !is_music_file(&self.filename){
-                        let f = "shuffle ".to_owned() + &self.filename;
-                        self.send(AudioCommand::Queue(f.split_whitespace().map(str::to_string).collect())) ;
+                ui.label("Currently Selected:");
+                if self.pathqueue.is_some(){
+                    ui.label(self.pathqueue.as_ref().unwrap());
+                }
+                else{
+                    ui.label("None");
+                }
+                if ui.button("Grab File").clicked(){
+                    if self.file_or_folder{
+                        if let Some(path) = FileDialog::new().set_directory(self.defpath.clone()).pick_folder() {
+                            self.pathqueue = Some(path.display().to_string());
+                        }
                     }
                     else{
-                        self.send(AudioCommand::Queue(self.filename.clone().split_whitespace().map(str::to_string).collect())) ;
+                        if let Some(path) = FileDialog::new().set_directory(self.defpath.clone()).pick_file() {
+                            self.pathqueue = Some(path.display().to_string());
+                        }
                     }
-                    self.filename = "".to_string();
                 }
-                ui.checkbox(& mut self.shuffle, "Shuffle?");
+                if self.file_or_folder{
+                    ui.checkbox(& mut self.shuffle, "Shuffle?");
+                }
             });
             ui.horizontal(|ui|{
                 if ui.button("Queue").clicked(){
-                    if self.shuffle && !is_music_file(&self.filename){
-                        let f = "shuffle ".to_owned() + &self.filename;
-                        self.send(AudioCommand::Queue(f.split_whitespace().map(str::to_string).collect())) ;
+                    if self.pathqueue.is_some(){
+                        if self.shuffle && self.file_or_folder{
+                            let f = "shuffle ".to_owned() + self.pathqueue.as_ref().unwrap();
+                            self.send(AudioCommand::Queue(f.split_whitespace().map(str::to_string).collect())) ;
+                        }
+                        else{
+                            let r = self.pathqueue.as_ref().unwrap().split_whitespace().map(str::to_string).collect();
+                            self.send(AudioCommand::Queue(r));
+                        }
                     }
-                    else{
-                        self.send(AudioCommand::Queue(self.filename.clone().split_whitespace().map(str::to_string).collect())) ;
-                    }
-                    self.filename = "".to_string();
+                    self.pathqueue = None;
                 }
                 if ui.button("Play").clicked(){
-                    self.send(AudioCommand::Play(self.filename.clone().split_whitespace().map(str::to_string).collect())) ;
-                    self.filename = "".to_string();
+                    if self.pathqueue.is_some(){
+                        self.send(AudioCommand::Play(self.pathqueue.as_ref().unwrap().split_whitespace().map(str::to_string).collect()));
+                    }
+                    self.pathqueue = None;
                 }
             });
-            ui.add(egui::Label::new(&self.playing));
+            if self.feedback.is_some(){
+                ui.label(self.feedback.as_ref().unwrap());
+            }
             match self.rx.try_recv() {
                 Ok(s) => {
                     if s.is_some(){
                         let k = s.unwrap();
                         if (&k) == (&String::from("  ")){
-                            self.playing = String::from("Now Playing ___")
+                            self.feedback = None;
                         }
                         else if (&k).starts_with("Now Playing ") && !(&k).contains("\n"){
-                            self.playing = k;
+                            self.feedback = Some(k);
                         }
                     }
                 },
@@ -119,9 +140,6 @@ impl eframe::App for RustyHeadphonesGUI{
                 }
                 let play_image = egui::include_image!("../assets/play.png");
                 let pause_image = egui::include_image!("../assets/pause.png");
-                if self.playing.ends_with("___"){
-                    self.isplaying = true;
-                }
                 let p_image = match self.isplaying {
                     true => pause_image,
                     false => play_image,
@@ -129,10 +147,6 @@ impl eframe::App for RustyHeadphonesGUI{
                 if ui.add_sized([100.0, 100.0], egui::ImageButton::new(p_image)).clicked(){
                     match self.isplaying {
                         true => {
-                            if !self.playing.ends_with("___"){
-                                self.send(AudioCommand::Pause);
-                                self.isplaying = !self.isplaying
-                            }
                         },
                         false => {
                             self.send(AudioCommand::Play(Vec::new()));

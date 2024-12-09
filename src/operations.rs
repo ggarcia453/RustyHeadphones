@@ -86,20 +86,20 @@ impl Handler{
         }
     }
     fn queue_file(& mut self,  s: String)-> Result<String,()>{
-        let news = s.replace("\\", "");
-        if Path::new(&news).is_file(){
-            self.queue.push(news.to_owned());
-            Ok(format!("Queued {}", news.to_owned()))
-        }
-        else{
-            let path = (self.defpath.clone() + &s).replace("\\", "");
-            if Path::new(&path).is_file(){
-                self.queue.push(path);
-                Ok(format!("Queued {}", news.to_owned()))
+        let s = s.replace("\"", "");
+        let p = Path::new(&s);
+        if p.exists(){
+            if p.is_relative(){
+                let path = self.defpath.clone() + &s;
+                self.queue.push(path.to_owned());
             }
             else{
-                Err(())
-            }
+                self.queue.push(s.to_owned())
+            };
+            Ok(format!("Queued {}", s.to_owned()))
+        }
+        else{
+            Err(())
         }
     }
     fn queue_folder(& mut self,  s:String, shuffle : bool) -> Result<String, ()>{
