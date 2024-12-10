@@ -19,6 +19,8 @@ struct RustyHeadphonesGUI{
     shuffle: bool,
     loophandle: usize,
     isplaying:bool,
+    volume: f32,
+    speed: f32
 }
 
 impl RustyHeadphonesGUI{
@@ -48,7 +50,9 @@ impl RustyHeadphonesGUI{
             feedback: None,
             shuffle : false,
             loophandle: 0,
-            isplaying:true
+            isplaying:true,
+            volume: 100.0,
+            speed : 1.0,
         }
     }
 
@@ -117,10 +121,9 @@ impl eframe::App for RustyHeadphonesGUI{
                             self.feedback = None;
                         }
                         else if (&k).starts_with("Now Playing ") && !(&k).contains("\n"){
+                            self.isplaying = true;
                             self.feedback = Some(k);
-                        }
-                        else{
-                            print!("{}", k);
+                            self.send(AudioCommand::Play(None));
                         }
                     }
                 },
@@ -147,12 +150,13 @@ impl eframe::App for RustyHeadphonesGUI{
                 if ui.add_sized([100.0, 100.0], egui::ImageButton::new(p_image)).clicked(){
                     match self.isplaying {
                         true => {
+                            self.send(AudioCommand::Pause);
                         },
                         false => {
                             self.send(AudioCommand::Play(None));
-                            self.isplaying = !self.isplaying;
                         },
                     }
+                    self.isplaying = !self.isplaying;
                     
                 }
                 let forward_image = egui::include_image!("../assets/forward.png");
@@ -176,6 +180,20 @@ impl eframe::App for RustyHeadphonesGUI{
                     }
                     self.loophandle = (self.loophandle + 1)%3;
                 }
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui|{
+                    ui.horizontal(|ui|{
+                        ui.label("Volume:");
+                        if ui.add(egui::Slider::new(&mut self.volume, 0.0 ..= 100.0)).changed(){
+                            self.send(AudioCommand::VolumeChanger(vec!["set".to_string(), self.volume.to_string()]));
+                    }
+                    });
+                    ui.horizontal(|ui|{
+                        ui.label("Speed:");
+                        if ui.add(egui::Slider::new(&mut self.speed, 0.01 ..= 10.0)).changed(){
+                            self.send(AudioCommand::SetSpeed(vec!["set".to_string(), self.speed.to_string()]));
+                        }
+                    });
+                });
             });
         });
     }

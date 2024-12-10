@@ -64,7 +64,6 @@ impl Handler{
         }
         else if s.starts_with("shuffle "){
             let news = s.strip_prefix("shuffle ").unwrap_or("").to_owned();
-            println!("{news}");
             self.queue_folder(news, true)
         }
         else if s.len() < 1 {
