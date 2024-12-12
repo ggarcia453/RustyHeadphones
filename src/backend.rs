@@ -43,8 +43,15 @@ fn play_song( s: & String, sink: &Sink)-> Result<(), Box<dyn std::error::Error>>
 }
 pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<Option<String>>, _stream_handle: Arc<Mutex<OutputStreamHandle>>, sink: Arc<Mutex<Sink>>, defpath:String){
     fn sendprint(sender: & Sender<Option<String>>, s: String){
-        match sender.try_send(Some(s)){
+        if s.is_empty(){
+            match sender.try_send(None) {
+                _ => (),
+            }
+        }
+        else{
+            match sender.try_send(Some(s)){
             _ => (),
+            }
         }
     }
     let mut handler = operations::Handler::new(defpath);
@@ -150,7 +157,10 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                     },
                     AudioCommand::Play(options)=>{
                         if let Ok(sink) = sink.lock(){
-                            sendprint(&sender,handler.play_handle(&sink, options));
+                            let ouput:String = handler.play_handle(&sink, options);
+                            if !ouput.is_empty(){
+                                sendprint(&sender, ouput);
+                            }
                         }
                     },
                     AudioCommand::Shuffle=>{

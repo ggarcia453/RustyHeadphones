@@ -20,7 +20,8 @@ struct RustyHeadphonesGUI{
     loophandle: usize,
     isplaying:bool,
     volume: f32,
-    speed: f32
+    speed: f32,
+    cur_queue: Vec<String>
 }
 
 impl RustyHeadphonesGUI{
@@ -53,6 +54,7 @@ impl RustyHeadphonesGUI{
             isplaying:true,
             volume: 100.0,
             speed : 1.0,
+            cur_queue: Vec::new(),
         }
     }
 
@@ -88,7 +90,7 @@ impl eframe::App for RustyHeadphonesGUI{
                         self.file_or_folder = true;
                     }
                 }
-                ui.checkbox(& mut self.shuffle, "Shuffle?");
+                ui.checkbox(& mut self.shuffle, "Shuffle Folder?");
             });
             ui.horizontal(|ui|{
                 if ui.button("Queue").clicked(){
@@ -109,9 +111,16 @@ impl eframe::App for RustyHeadphonesGUI{
                     }
                     self.pathqueue = None;
                 }
+                if ui.button("Shuffle Queue").clicked(){
+                    self.send(AudioCommand::Shuffle);
+                    self.send(AudioCommand::Queue("view".to_string()));
+                }
             });
             if self.feedback.is_some(){
                 ui.label(self.feedback.as_ref().unwrap());
+            }
+            if !self.cur_queue.is_empty(){
+                ui.label(self.cur_queue.join("\n"));
             }
             match self.rx.try_recv() {
                 Ok(s) => {
@@ -120,10 +129,15 @@ impl eframe::App for RustyHeadphonesGUI{
                         if (&k) == (&String::from("  ")){
                             self.feedback = None;
                         }
-                        else if (&k).starts_with("Now Playing ") && !(&k).contains("\n"){
+                        else if (&k).starts_with("Now Playing "){
+                            self.send(AudioCommand::Queue("view".to_string()));
                             self.isplaying = true;
                             self.feedback = Some(k);
                             self.send(AudioCommand::Play(None));
+                        }
+                        else if (&k).starts_with("Currently Playing"){
+                            self.cur_queue = k.split("\n").map(|x |x.to_string()).collect();
+                            self.cur_queue.remove(0);
                         }
                     }
                 },
