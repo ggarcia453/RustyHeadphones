@@ -81,77 +81,65 @@ impl Handler{
     fn queue_file(& mut self,  s: String)-> Result<String,()>{
         let s = s.replace("\"", "");
         let p = Path::new(&s);
-        if p.exists(){
-            if p.is_relative(){
-                let path = self.defpath.clone() + &s;
-                self.queue.push(path.to_owned());
-            }
-            else{
-                self.queue.push(s.to_owned())
-            };
-            Ok(format!("Queued {}", s.to_owned()))
-        }
-        else{
+        let final_path = if p.is_relative() {
+            self.defpath.clone() + &s
+        } else {
+            s.clone()
+        };
+        let newp = Path::new(&final_path);
+        if newp.exists() {
+            self.queue.push(final_path);
+            Ok(format!("Queued {}", s))
+        } else {
             Err(())
         }
     }
     fn queue_folder(& mut self,  s:String, shuffle : bool) -> Result<String, ()>{
         let s = s.replace("\"", "");
         let p = Path::new(&s);
-        if p.exists(){
+        
+        let final_path = if p.is_relative() {
+            self.defpath.clone() + &s
+        } else {
+            s.clone()
+        };
+        
+        let final_p = Path::new(&final_path);
+        println!("Checking folder path: {}", final_path);
+        
+        if final_p.exists() {
             let mut rs = String::new();
-            let files_and_stuff = WalkDir::new(&p);
-            for file in files_and_stuff{
-                let fpath = file.as_ref().unwrap().path().to_str().unwrap();
-                if Path::new(fpath).is_file() && is_music_file(fpath){
-                    self.queue.push(fpath.to_owned());
-                    if rs.is_empty(){
-                        rs = format!("Queued {}", fpath.to_owned())
-                    }
-                    else{
-                        rs = format!("{rs}\nQueued {}", fpath.to_owned());
+            let files_and_stuff = WalkDir::new(&final_p);
+            
+            for file in files_and_stuff {
+                if let Ok(entry) = file {
+                    let fpath = entry.path();
+                    if fpath.is_file() && is_music_file(fpath.to_str().unwrap_or("")) {
+                        let file_path = fpath.to_str().unwrap_or("").to_owned();
+                        self.queue.push(file_path.clone());
+                        
+                        if rs.is_empty() {
+                            rs = format!("Queued {}", file_path)
+                        } else {
+                            rs = format!("{rs}\nQueued {}", file_path);
+                        }
                     }
                 }
             }
-            if shuffle{
+            
+            if shuffle {
                 let mut rng = thread_rng();
-                self.queue.shuffle(& mut rng);
+                self.queue.shuffle(&mut rng);
             }
-            Ok(rs)
+            
+            if rs.is_empty() {
+                Err(()) 
+            } else {
+                Ok(rs)
+            }
+        } else {
+            Err(()) 
         }
-        else{
-            Err(())
-        }
-        // let path:String;
-        // if !Path::new(&s).is_dir(){
-        //     path = (self.defpath.clone() + &s).replace("\\", "");
-        // }
-        // else{
-        //     path = s.clone().replace("\\", "");
-        // }
-        // if Path::new(&path).is_dir() && &s != ""{
-        //     let mut rs = String::new();
-        //     let files_and_stuff = WalkDir::new(&path);
-        //     for file in files_and_stuff{
-        //         let fpath = file.as_ref().unwrap().path().to_str().unwrap();
-        //         if Path::new(fpath).is_file() && is_music_file(fpath){
-        //             self.queue.push(fpath.to_owned());
-        //             if rs.is_empty(){
-        //                 rs = format!("Queued {}", fpath.to_owned())
-        //             }
-        //             else{
-        //                 rs = format!("{rs}\nQueued {}", fpath.to_owned());
-        //             }
-        //         }
-        //     }
-        //     if shuffle{
-        //         let mut rng = thread_rng();
-        //         self.queue.shuffle(& mut rng);
-        //     }
-        //     Ok(rs)
-        // }else{
-        //     Err(())
-        // }
     }
     pub fn loop_handle(& mut self, s : &str) -> String{
         match s {
@@ -254,5 +242,66 @@ impl Handler{
             sink.set_volume(self.volume.unwrap());
             self.volume = None;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[test]
+    fn test_is_music_file(){
+        assert!(is_music_file("song.mp3"));
+        assert!(is_music_file("song.wav"));
+        assert!(is_music_file("song.ogg"));
+        assert!(is_music_file("song.flac"));
+        assert!(!is_music_file("song.jpg"));
+        assert!(!is_music_file("song.mp4"));
+        assert!(!is_music_file("song.txt"));
+    }
+    #[test]
+    fn loop_equals(){
+        assert_eq!(Loop::LoopQueue, Loop::LoopQueue);
+        assert_eq!(Loop::LoopSong, Loop::LoopSong);
+        assert_eq!(Loop::NoLoop, Loop:: NoLoop);
+    }
+    #[test]
+    fn loop_not_equals(){
+        assert_ne!(Loop::LoopQueue, Loop::LoopSong);
+        assert_ne!(Loop::LoopSong, Loop::NoLoop);
+        assert_ne!(Loop::NoLoop, Loop::LoopQueue);
+    }
+    #[test]
+    fn handler_queue_view(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\g311\\Music\\"));
+        let res = test_handler.queue_handle(String::from("view"));
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), "No song is playing right now".to_string());
+    }
+    #[test]
+    fn handler_queue_file_exists(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        let result = test_handler.queue_file(String::from("Goodbye.mp3"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Queued Goodbye.mp3");
+        assert_eq!(test_handler.queue.len(), 1);
+    }    
+    #[test]
+    fn handler_queue_file_no_exists(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        let result = test_handler.queue_file(String::from("song.mp3"));
+        assert!(result.is_err());
+        assert_eq!(test_handler.queue.len(), 0);
+    }
+    #[test]
+    fn handler_queue_folder_exists(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        //Test Folder has three songs. All three should be queued.
+        let result = test_handler.queue_folder(String::from("TestFolder\\"), false);
+        assert!(result.is_ok());
+        assert_eq!(test_handler.queue.len(), 3);
+    }
+    #[test]
+    fn handler_queue_folder_no_exists(){
+
     }
 }

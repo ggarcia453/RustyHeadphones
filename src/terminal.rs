@@ -84,8 +84,7 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
                     ("mute", _) => Some(AudioCommand::Mute),
                     ("unmute", _) => Some(AudioCommand::Unmute),
                     ("help", _) => Some(AudioCommand::Help),
-                    ("speed", arg) => Some(AudioCommand::SetSpeed(arg.split_whitespace().map(|e| e.to_owned()).collect()))
-                    ,
+                    ("speed", arg) => Some(AudioCommand::SetSpeed(arg.split_whitespace().map(|e| e.to_owned()).collect())),
                     _ => None,
                 };
                 if let Some(cmd) = cmd{
