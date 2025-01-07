@@ -302,6 +302,53 @@ mod tests{
     }
     #[test]
     fn handler_queue_folder_no_exists(){
-
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        //NonExistentFolder does not exist.
+        let result = test_handler.queue_folder(String::from("NonExistentFolder\\"), false);
+        assert!(result.is_err());
+        assert_eq!(test_handler.queue.len(), 0);
     }
+    #[test]
+    fn handler_queue_handle_file(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        let result = test_handler.queue_handle(String::from("Goodbye.mp3"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Queued Goodbye.mp3");
+        assert_eq!(test_handler.queue.len(), 1);
+    }
+    #[test]
+    fn handler_queue_handle_folder(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        //Test Folder has three songs. All three should be queued.
+        let result = test_handler.queue_handle(String::from("TestFolder\\"));
+        assert!(result.is_ok());
+        assert_eq!(test_handler.queue.len(), 3);
+   }
+
+   #[test]
+   fn loop_handle_check(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let res = test_handler.loop_handle("view");
+    assert_eq!(res, "Current Loop option is NoLoop");
+   }
+   #[test]
+   fn  loop_handle_set() {
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let res = test_handler.loop_handle("song");
+    assert_eq!(res, "Now Looping Current Song");
+    let res = test_handler.loop_handle("queue");
+    assert_eq!(res, "Now Looping Current Queue");
+    let res = test_handler.loop_handle("cancel");
+    assert_eq!(res, "No longer looping");
+   }
+   #[test]
+   fn mute_check(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert!(test_handler.volume.is_none());
+    test_handler.mute(&sink);
+    assert!(test_handler.volume.is_some());
+    test_handler.unmute(&sink);
+    assert!(test_handler.volume.is_none());
+   }
 }
