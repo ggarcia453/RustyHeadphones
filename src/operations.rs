@@ -342,6 +342,54 @@ mod tests{
     assert_eq!(res, "No longer looping");
    }
    #[test]
+   fn back_handle_nothing(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert_eq!(test_handler.back_handle(&sink), "Cannot go back. No songs to go back to!");
+   }
+   #[test]
+   fn back_handle_something(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert_eq!(test_handler.queue.len(), 0);
+    test_handler.stack.push(String::from("Goodbye.mp3"));
+    test_handler.back_handle(&sink);
+    assert_eq!(test_handler.queue.len(), 1);
+   }
+   #[test]
+   fn skip_nothing(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert_eq!(test_handler.skip_handle(&sink), "No Song to skip");
+   }
+   #[test]
+   fn skip_loop_queue(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    test_handler.loop_handle("queue");
+    assert!(test_handler.queue_handle(String::from("TestFolder\\")).is_ok());
+    test_handler.cur_song = test_handler.queue.get(0).cloned();
+    assert!(test_handler.cur_song.is_some());
+    assert_eq!(3, test_handler.queue.len());
+    test_handler.skip_handle(&sink);
+    assert_eq!(4, test_handler.queue.len());
+    assert!(test_handler.cur_song.is_none());
+   }
+
+   #[test]
+   fn skip_no_loop(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert!(test_handler.queue_handle(String::from("TestFolder\\")).is_ok());
+    test_handler.cur_song = test_handler.queue.get(0).cloned();
+    assert!(test_handler.cur_song.is_some());
+    assert_eq!(3, test_handler.queue.len());
+    test_handler.skip_handle(&sink);
+    assert_eq!(3, test_handler.queue.len());
+    assert!(test_handler.cur_song.is_none());
+   }
+
+   #[test]
    fn mute_check(){
     let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
     let (sink, _ )= rodio::Sink::new_idle();
