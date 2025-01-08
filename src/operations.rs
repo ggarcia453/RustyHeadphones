@@ -257,7 +257,17 @@ mod tests{
         assert!(!is_music_file("song.jpg"));
         assert!(!is_music_file("song.mp4"));
         assert!(!is_music_file("song.txt"));
+        assert!(!is_music_file("song"));
+        assert!(!is_music_file(""));
     }
+    #[test]
+    fn handler_init(){
+        let test_handler = Handler::new(String::from("C:\\Users\\g311\\Music\\"));
+        assert!(test_handler.cur_song.is_none());
+        assert!(test_handler.volume.is_none());
+        assert_eq!(test_handler.defpath, "C:\\Users\\g311\\Music\\");
+    }
+
     #[test]
     fn loop_equals(){
         assert_eq!(Loop::LoopQueue, Loop::LoopQueue);
@@ -293,6 +303,14 @@ mod tests{
         assert_eq!(test_handler.queue.len(), 0);
     }
     #[test]
+    fn handle_queue_folder_empty(){
+        let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+        //New is an empty folder
+        let result = test_handler.queue_folder(String::from("New\\"), false);
+        assert!(result.is_err());
+        assert_eq!(test_handler.queue.len(), 0);
+    }
+    #[test]
     fn handler_queue_folder_exists(){
         let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
         //Test Folder has three songs. All three should be queued.
@@ -324,7 +342,41 @@ mod tests{
         assert!(result.is_ok());
         assert_eq!(test_handler.queue.len(), 3);
    }
+   #[test]
+   fn play_test_normal(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert_eq!(test_handler.play_handle(&sink, None), "");
+   }
 
+   #[test]
+   fn play_handle_file(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    let res = test_handler.play_handle(&sink, Some(String::from("Goodbye.mp3")));
+    assert_eq!(res, "Queued Goodbye.mp3");
+   }
+   #[test]
+   fn play_handle_folder(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    let res = test_handler.play_handle(&sink, Some(String::from("TestFolder\\")));
+    //"\n" means that mutliple files were added to queue
+    assert!(res.contains("\n"));
+    assert_eq!(test_handler.queue.len(), 3);
+   }
+
+   #[test]
+   fn play_puts_infront(){
+    let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
+    let (sink, _ )= rodio::Sink::new_idle();
+    assert!(test_handler.queue_handle("Goodbye.mp3".to_string()).is_ok());
+    test_handler.play_handle(&sink, Some("Noots.mp3".to_string()));
+    assert_eq!(test_handler.queue.len(), 2);
+    let expect = Some(String::from("C:\\Users\\gg311\\Music\\Noots.mp3"));
+    assert_eq!(test_handler.queue.get(0).cloned(), expect);
+   }
+   
    #[test]
    fn loop_handle_check(){
     let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
