@@ -130,3 +130,49 @@ impl Completer for HeadphoneHelper{
     
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustyline::Context;
+    use rustyline::history::DefaultHistory;
+
+    fn setup() -> (HeadphoneHelper, Context<'static>) {
+        let music_path = String::from("/tmp/music"); // Use a test directory
+        let helper = HeadphoneHelper::new(music_path);
+        let history = Box::leak(Box::new(DefaultHistory::new()));
+        let ctx = Context::new(history);
+        (helper, ctx)
+    }
+
+    #[test]
+    fn command_completion() {
+        let (helper, ctx) = setup();
+        let (pos, completions) = helper.complete("pl", 2, &ctx).unwrap();
+        assert_eq!(pos, 0);
+        assert!(completions.iter().any(|p| p.display == "play"));
+    }
+    #[test]
+    fn empty_completion(){
+        let (helper, ctx) = setup();
+        let (pos, completions) = helper.complete("", 0, &ctx).unwrap();
+        assert_eq!(pos, 0);
+        assert_eq!(completions.len(), helper.commands.len());
+    }
+
+    #[test]
+    fn loop_subcommands() {
+        let (helper, ctx) = setup();
+        let (pos, completions) = helper.complete("loop s", 6, &ctx).unwrap();
+        assert_eq!(pos, 5);
+        assert!(completions.iter().any(|p| p.display == "song"));
+    }
+    #[test]
+    fn loop_allcommands(){
+        let (helper, ctx) = setup();
+        let (_, completions) = helper.complete("loop ", 5, &ctx).unwrap();
+        let expected = vec!["song", "queue", "cancel", "view"];
+        assert!(expected.iter().all(|&cmd| 
+            completions.iter().any(|p| p.display == cmd)));
+    }
+}
