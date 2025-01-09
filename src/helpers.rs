@@ -138,7 +138,7 @@ mod tests {
     use rustyline::history::DefaultHistory;
 
     fn setup() -> (HeadphoneHelper, Context<'static>) {
-        let music_path = String::from("/tmp/music"); // Use a test directory
+        let music_path = String::from("C:\\Users\\gg311\\Music"); // Use a test directory
         let helper = HeadphoneHelper::new(music_path);
         let history = Box::leak(Box::new(DefaultHistory::new()));
         let ctx = Context::new(history);
@@ -151,6 +151,12 @@ mod tests {
         let (pos, completions) = helper.complete("pl", 2, &ctx).unwrap();
         assert_eq!(pos, 0);
         assert!(completions.iter().any(|p| p.display == "play"));
+        let (pos, completions) = helper.complete("pa", 2, &ctx).unwrap();
+        assert_eq!(pos, 0);
+        assert!(completions.iter().any(|p| p.display == "pause"));
+        let (pos, completions) = helper.complete("ex", 2, &ctx).unwrap();
+        assert_eq!(pos, 0);
+        assert!(completions.iter().any(|p| p.display == "exit"));
     }
     #[test]
     fn empty_completion(){
@@ -166,6 +172,15 @@ mod tests {
         let (pos, completions) = helper.complete("loop s", 6, &ctx).unwrap();
         assert_eq!(pos, 5);
         assert!(completions.iter().any(|p| p.display == "song"));
+        let (pos, completions) = helper.complete("loop q", 6, &ctx).unwrap();
+        assert_eq!(pos, 5);
+        assert!(completions.iter().any(|p| p.display == "queue"));
+        let (pos, completions) = helper.complete("loop c", 6, &ctx).unwrap();
+        assert_eq!(pos, 5);
+        assert!(completions.iter().any(|p| p.display == "cancel"));
+        let (pos, completions) = helper.complete("loop v", 6, &ctx).unwrap();
+        assert_eq!(pos, 5);
+        assert!(completions.iter().any(|p| p.display == "view"));
     }
     #[test]
     fn loop_allcommands(){
@@ -174,5 +189,79 @@ mod tests {
         let expected = vec!["song", "queue", "cancel", "view"];
         assert!(expected.iter().all(|&cmd| 
             completions.iter().any(|p| p.display == cmd)));
+    }
+
+    #[test]
+    fn volume_subcommands(){
+        let (helper, ctx) = setup();
+        let (pos, completions) = helper.complete("volume u", 8, &ctx).unwrap();
+        assert_eq!(pos, 7);
+        assert!(completions.iter().any(|p| p.display == "up"));
+        let (pos, completions) = helper.complete("volume d", 8, &ctx).unwrap();
+        assert_eq!(pos, 7);
+        assert!(completions.iter().any(|p| p.display == "down"));
+        let (pos, completions) = helper.complete("volume v", 8, &ctx).unwrap();
+        assert_eq!(pos, 7);
+        assert!(completions.iter().any(|p| p.display == "view"));
+        let (pos, completions) = helper.complete("volume s", 8, &ctx).unwrap();
+        assert_eq!(pos, 7);
+        assert!(completions.iter().any(|p| p.display == "set"));
+    }
+
+    #[test]
+    fn volume_allcommands(){
+        let (helper, ctx) = setup();
+        let (_, completions) = helper.complete("volume ", 7, &ctx).unwrap();
+        let expected = vec!["up", "down", "set", "view"];
+        assert!(expected.iter().all(|&cmd| 
+            completions.iter().any(|p| p.display == cmd)));
+    }
+
+    #[test]
+    fn speed_subcommands(){
+        let (helper, ctx) = setup();
+        let (pos, completions) = helper.complete("speed u", 7, &ctx).unwrap();
+        assert_eq!(pos, 6);
+        assert!(completions.iter().any(|p| p.display == "up"));
+        let (pos, completions) = helper.complete("speed d", 7, &ctx).unwrap();
+        assert_eq!(pos, 6);
+        assert!(completions.iter().any(|p| p.display == "down"));
+        let (pos, completions) = helper.complete("speed v", 7, &ctx).unwrap();
+        assert_eq!(pos, 6);
+        assert!(completions.iter().any(|p| p.display == "view"));
+        let (pos, completions) = helper.complete("speed s", 7, &ctx).unwrap();
+        assert_eq!(pos, 6);
+        assert!(completions.iter().any(|p| p.display == "set"));
+    }
+
+    #[test]
+    fn speed_allcommands(){
+        let (helper, ctx) = setup();
+        let (_, completions) = helper.complete("speed ", 6, &ctx).unwrap();
+        let expected = vec!["up", "down", "set", "view"];
+        assert!(expected.iter().all(|&cmd| 
+            completions.iter().any(|p| p.display == cmd)));
+    }
+
+    #[test]
+    fn queue_command_tests() {
+        let (helper, ctx) = setup();
+        let (pos, completions) = helper.complete("queue sh", 8, &ctx).unwrap();
+        assert_eq!(pos, 6);
+        assert!(completions.iter().any(|p| p.display == "shuffle"));
+        let (_, completions) = helper.complete("queue view ", 11, &ctx).unwrap();
+        assert!(completions.iter().all(|p| !p.display.contains("shuffle")));
+    }
+
+    #[test]
+    fn helper_init_tests() {
+        let music_path = String::from("C:\\Users\\gg311\\Music\\");
+        let helper = HeadphoneHelper::new(music_path.clone());
+        assert!(helper.commands.contains(&String::from("play")));
+        assert!(helper.commands.contains(&String::from("pause")));
+        assert!(helper.commands.contains(&String::from("stop")));
+        assert!(helper.specialcommands.contains(&String::from("shuffle")));
+        assert!(helper.specialcommands.contains(&String::from("view")));
+        assert_eq!(helper.musicpath, music_path);
     }
 }
