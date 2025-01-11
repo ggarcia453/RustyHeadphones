@@ -359,3 +359,67 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
         }
     }
 }
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+    use std::time::Duration;
+    async fn setup_test() -> (Sender<AudioCommand>, Receiver<Option<String>>, Arc<Mutex<Sink>>) {
+        let (cmd_tx, cmd_rx) = mpsc::channel(32);
+        let (msg_tx, msg_rx) = mpsc::channel(32);
+        let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&stream_handle).unwrap();
+        let sink = Arc::new(Mutex::new(sink));
+        let stream_handle = Arc::new(Mutex::new(stream_handle));
+        let test_path = String::from("C:\\Users\\gg311\\Music\\Goodbye.mp3");
+        tokio::spawn(player_thread(cmd_rx, msg_tx, stream_handle, sink.clone(), test_path));
+        (cmd_tx, msg_rx, sink)
+    }
+
+    #[tokio::test]
+    async fn pause_test(){
+        let (cmd_tx,  _, sink) = setup_test().await;
+        cmd_tx.send(AudioCommand::Pause).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(sink.lock().unwrap().is_paused());
+    }
+    #[tokio::test]
+    async fn empty_play_test(){
+        let (cmd_tx,  _, sink) = setup_test().await;
+        cmd_tx.send(AudioCommand::Play(None)).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(!sink.lock().unwrap().is_paused());
+    }
+
+    #[tokio::test]
+    async fn volume_tests(){
+        let (cmd_tx,  mut msg_rx, _sink) = setup_test().await;
+        cmd_tx.send(AudioCommand::VolumeChanger(vec!["set".to_string(), "50".to_string()])).await.unwrap();
+        if let Some(Some(msg)) = msg_rx.recv().await {
+            assert!(msg.contains("Volume is at"));
+            assert!(msg.contains("50"));
+        }
+        cmd_tx.send(AudioCommand::VolumeChanger(vec!["up".to_string()])).await.unwrap();
+        if let Some(Some(msg)) = msg_rx.recv().await {
+            assert!(msg.contains("Volume is at 55"));
+        }
+        cmd_tx.send(AudioCommand::VolumeChanger(vec!["down".to_string()])).await.unwrap();
+        if let Some(Some(msg)) = msg_rx.recv().await {
+            assert!(msg.contains("Volume is at 50"));
+        }
+    }
+
+    #[tokio::test]
+    async fn mute_tests(){
+        let (cmd_tx, _msg_rx, sink) = setup_test().await;
+        cmd_tx.send(AudioCommand::Mute).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(sink.lock().unwrap().volume(), 0.0);
+        cmd_tx.send(AudioCommand::Unmute).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(sink.lock().unwrap().volume() > 0.0);
+    }
+
+}
