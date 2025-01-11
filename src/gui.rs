@@ -59,9 +59,8 @@ impl RustyHeadphonesGUI{
     }
 
     fn send(&self, cmd: AudioCommand){
-        match self.tx.try_send(cmd) {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => (),
+        if let Err(e) = self.tx.try_send(cmd) { 
+            println!("{:?}", e) 
         }
     }
 
@@ -122,26 +121,24 @@ impl eframe::App for RustyHeadphonesGUI{
             if !self.cur_queue.is_empty(){
                 ui.label(self.cur_queue.join("\n"));
             }
-            match self.rx.try_recv() {
-                Ok(s) => {
-                    if s.is_some(){
+            if let Ok(s) =  self.rx.try_recv() {
+                if s.is_some(){
                         let k = s.unwrap();
-                        if (&k) == (&String::from("  ")){
+                        if k == *"  "{
                             self.feedback = None;
                         }
-                        else if (&k).starts_with("Now Playing "){
+                        else if k.starts_with("Now Playing "){
                             self.send(AudioCommand::Queue("view".to_string()));
                             self.isplaying = true;
                             self.feedback = Some(k);
                             self.send(AudioCommand::Play(None));
                         }
-                        else if (&k).starts_with("Currently Playing"){
+                        else if k.starts_with("Currently Playing"){
                             self.cur_queue = k.split("\n").map(|x |x.to_string()).collect();
                             self.cur_queue.remove(0);
                         }
                     }
-                },
-                _ => (),
+                                
             }
             ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui |{
                 let back_image = egui::include_image!("../assets/back.png");

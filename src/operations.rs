@@ -10,9 +10,9 @@ pub fn is_music_file(x: &str) -> bool{
 
 #[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub enum Loop{
-    NoLoop,
-    LoopQueue,
-    LoopSong
+    Straight,
+    Queue,
+    Song
 }
 
 impl std::fmt::Display for Loop{
@@ -37,7 +37,7 @@ pub struct Handler{
 impl Handler{
     pub fn new(m:String) -> Self{
         Self{
-            islooping: Loop::NoLoop,
+            islooping: Loop::Straight,
             cur_song: None,
             queue: Vec::new(),
             stack : Vec::new(),
@@ -51,8 +51,8 @@ impl Handler{
                 Some(song) => {
                     let mut return_string :String = "".to_string();
                     return_string.push_str(&format!("Currently Playing {}\nUp next -> ", song));
-                    if &self.islooping == &Loop::LoopSong{
-                        return_string= return_string + "the same song :)\nAfter ->";
+                    if self.islooping == Loop::Song{
+                        return_string+= "the same song :)\nAfter ->";
                     }
                     for i in self.queue.clone(){
                         return_string = format!("{}{}\n", return_string, i);    
@@ -66,17 +66,16 @@ impl Handler{
             let news = s.strip_prefix("shuffle ").unwrap_or("").to_owned();
             self.queue_folder(news, true)
         }
-        else if s.len() < 1 {
+        else if s.is_empty() {
             Err(())
         }
-        else{
-            if is_music_file(&s){
-                self.queue_file(s)
-            }
-            else{
-                self.queue_folder(s, false)
-            }
+        else if is_music_file(&s){
+            self.queue_file(s)
         }
+        else {
+            self.queue_folder(s, false)
+        }
+    
     }
     fn queue_file(& mut self,  s: String)-> Result<String,()>{
         let s = s.replace("\"", "");
@@ -109,11 +108,10 @@ impl Handler{
         
         if final_p.exists() {
             let mut rs = String::new();
-            let files_and_stuff = WalkDir::new(&final_p);
+            let files_and_stuff = WalkDir::new(final_p);
             
-            for file in files_and_stuff {
-                if let Ok(entry) = file {
-                    let fpath = entry.path();
+            for file in files_and_stuff.into_iter().flatten(){
+                    let fpath = file.path();
                     if fpath.is_file() && is_music_file(fpath.to_str().unwrap_or("")) {
                         let file_path = fpath.to_str().unwrap_or("").to_owned();
                         self.queue.push(file_path.clone());
@@ -124,7 +122,7 @@ impl Handler{
                             rs = format!("{rs}\nQueued {}", file_path);
                         }
                     }
-                }
+                
             }
             
             if shuffle {
@@ -144,15 +142,15 @@ impl Handler{
     pub fn loop_handle(& mut self, s : &str) -> String{
         match s {
             "song" | "Song" => {
-                self.islooping = Loop::LoopSong;  
+                self.islooping = Loop::Song;  
                 "Now Looping Current Song".to_string()
             },
             "queue" | "Queue" => {
-                self.islooping = Loop::LoopQueue;
+                self.islooping = Loop::Queue;
                 "Now Looping Current Queue".to_string()
             },
             "cancel" | "Cancel" => {
-                self.islooping = Loop::NoLoop;
+                self.islooping = Loop::Straight;
                 "No longer looping".to_string()
             }
             "view" =>{
@@ -170,7 +168,7 @@ impl Handler{
             let mut temp: Vec<String> = self.queue.clone();
             self.queue.clear();
             let c = s.as_ref().unwrap().clone();
-            if c == "".to_string(){
+            if c == *""{
                 sink.play();
                 return String::new();
             }
@@ -192,14 +190,13 @@ impl Handler{
         }     
     }
     pub fn back_handle(&mut self, sink : &Sink)-> String{
-        if self.stack.len() > 0{
+        if self.stack.is_empty(){
             let mut new_queue: Vec<String> = Vec::new();
-            let nextsong :String;
             let mut curque :Vec<String> = self.queue.clone();
-            nextsong = self.stack.pop().unwrap();
+            let nextsong = self.stack.pop().unwrap();
             new_queue.push(nextsong);
             if self.cur_song.is_some(){
-                new_queue.push(self.cur_song.as_ref().clone().unwrap().to_owned());
+                new_queue.push(self.cur_song.as_ref().unwrap().to_owned());
                 self.cur_song = None;
             }
             new_queue.append(&mut curque);
@@ -213,15 +210,12 @@ impl Handler{
         }
     }
     pub fn skip_handle(& mut self, sink : &Sink)->String{
-        match self.islooping{
-            Loop::LoopQueue => {
-                let current:String = self.cur_song.as_ref().unwrap().clone();
-                self.queue.push(current);
-            }
-            _ => ()
+        if self.islooping == Loop::Queue{
+            let current:String = self.cur_song.as_ref().unwrap().clone();
+            self.queue.push(current);
         }
         if self.cur_song.is_some(){
-            self.stack.push(self.cur_song.as_ref().clone().unwrap().to_owned());
+            self.stack.push(self.cur_song.as_ref().unwrap().to_owned());
             self.cur_song = None; 
             sink.skip_one();
             String::from("Skipped")
@@ -270,15 +264,15 @@ mod tests{
 
     #[test]
     fn loop_equals(){
-        assert_eq!(Loop::LoopQueue, Loop::LoopQueue);
-        assert_eq!(Loop::LoopSong, Loop::LoopSong);
-        assert_eq!(Loop::NoLoop, Loop:: NoLoop);
+        assert_eq!(Loop::Queue, Loop::Queue);
+        assert_eq!(Loop::Song, Loop::Song);
+        assert_eq!(Loop::Straight, Loop:: Straight);
     }
     #[test]
     fn loop_not_equals(){
-        assert_ne!(Loop::LoopQueue, Loop::LoopSong);
-        assert_ne!(Loop::LoopSong, Loop::NoLoop);
-        assert_ne!(Loop::NoLoop, Loop::LoopQueue);
+        assert_ne!(Loop::Queue, Loop::Song);
+        assert_ne!(Loop::Song, Loop::Straight);
+        assert_ne!(Loop::Straight, Loop::Queue);
     }
     #[test]
     fn handler_queue_view(){
@@ -381,7 +375,7 @@ mod tests{
    fn loop_handle_check(){
     let mut test_handler = Handler::new(String::from("C:\\Users\\gg311\\Music\\"));
     let res = test_handler.loop_handle("view");
-    assert_eq!(res, "Current Loop option is NoLoop");
+    assert_eq!(res, "Current Loop option is Straight");
    }
    #[test]
    fn  loop_handle_set() {

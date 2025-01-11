@@ -44,14 +44,11 @@ fn play_song( s: & String, sink: &Sink)-> Result<(), Box<dyn std::error::Error>>
 pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<Option<String>>, _stream_handle: Arc<Mutex<OutputStreamHandle>>, sink: Arc<Mutex<Sink>>, defpath:String){
     fn sendprint(sender: & Sender<Option<String>>, s: String){
         if s.is_empty(){
-            match sender.try_send(None) {
-                _ => (),
-            }
+            sender.try_send(None).unwrap();
+            
         }
         else{
-            match sender.try_send(Some(s)){
-            _ => (),
-            }
+            sender.try_send(Some(s)).unwrap();            
         }
     }
     let mut handler = operations::Handler::new(defpath);
@@ -65,9 +62,9 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                             handler.stack.push(handler.cur_song.as_ref().unwrap().clone());
                         }
                         match handler.islooping{
-                            operations::Loop::NoLoop => {
+                            operations::Loop::Straight => {
                                 if !handler.queue.is_empty(){
-                                    let next_song = handler.queue.get(0);
+                                    let next_song = handler.queue.first();
                                     match play_song(next_song.as_ref().unwrap(), &sink){
                                         Ok(_) => {
                                             handler.cur_song = Some(next_song.unwrap().to_owned());
@@ -83,18 +80,15 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                     handler.cur_song = None;
                                 }
                             },
-                            operations::Loop::LoopSong => {
+                            operations::Loop::Song => {
                                 if handler.cur_song.is_some(){
-                                    match play_song(handler.cur_song.as_ref().unwrap(), &sink){
-                                        Err(_)=>{
-                                            handler.cur_song = None;
-                                            sendprint(&sender,"Error playing song :/".to_string());
-                                        }, 
-                                        _ => (),
+                                    if play_song(handler.cur_song.as_ref().unwrap(), &sink).is_err(){
+                                        handler.cur_song = None;
+                                        sendprint(&sender,"Error playing song :/".to_string());
                                     };
                                 }
                                 else if !handler.queue.is_empty(){
-                                    let nextsong = handler.queue.get(0).unwrap().to_owned();
+                                    let nextsong = handler.queue.first().unwrap().to_owned();
                                     match play_song(&nextsong, &sink){
                                         Ok(_) =>{
                                             handler.cur_song = Some(nextsong);
@@ -108,13 +102,13 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                     
                                 }
                             },
-                            operations::Loop::LoopQueue => {
+                            operations::Loop::Queue => {
                                 if handler.cur_song.is_some(){
                                     let s = handler.cur_song.clone().unwrap();
                                     handler.queue.push(s);
                                 }
                                 if !handler.queue.is_empty(){
-                                    let nextsong = handler.queue.get(0).unwrap().to_owned();
+                                    let nextsong = handler.queue.first().unwrap().to_owned();
                                     match play_song(&nextsong, &sink){
                                         Ok(_) => {
                                             handler.cur_song = Some(nextsong);
@@ -137,9 +131,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
             Some(cmd) = receiver.recv() => {
                 match cmd {
                     AudioCommand::Exit => {
-                        match sender.try_send(None){
-                            _ => (),
-                        };
+                        sender.try_send(None).unwrap();
                         break;
                     },
                     AudioCommand::Stop => {
@@ -187,7 +179,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                 Some(op)=>{
                                     match op.as_str() {
                                         "view" => {
-                                            let volume: f32 = sink.volume() as f32;
+                                            let volume: f32 = sink.volume();
                                             sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         },
                                         "set" => {
@@ -198,8 +190,8 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                                         sendprint(&sender, "Error: volume should be set to between 0 and 100".to_string());
                                                     },
                                                     Ok(volume) => {
-                                                        if 0.0 <= volume && volume <= 100.0{
-                                                            sink.set_volume(volume/100.0 as f32)
+                                                        if (0.0..=100.0).contains(&volume){
+                                                            sink.set_volume(volume/100.0_f32)
                                                         }
                                                         else{
                                                             sendprint(&sender, "Error: volume should be set to between 0 and 100".to_string());
@@ -209,7 +201,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                             }else{
                                                 sendprint(&sender, "Error: volume should be set to between 0 and 100".to_string());
                                             }
-                                            let volume: f32 = sink.volume() as f32;
+                                            let volume: f32 = sink.volume();
                                             sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         },
                                         "down" | "Down" => {
@@ -220,7 +212,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                             else{
                                                 sink.set_volume(0.0);
                                             }
-                                            let volume: f32 = sink.volume() as f32;
+                                            let volume: f32 = sink.volume();
                                             sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         }
                                         "up" | "Up" => {
@@ -231,7 +223,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                             else{
                                                 sink.set_volume(1.0);
                                             }
-                                            let volume: f32 = sink.volume() as f32;
+                                            let volume: f32 = sink.volume();
                                             sendprint(&sender, format!("Volume is at {:.0}", 100.0 * volume));
                                         }
                                         x => {
@@ -286,8 +278,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                     },
                     AudioCommand::SetSpeed(options) =>{
                         if let Ok(sink) = sink.lock(){
-                            match options.first(){
-                                Some(op) => {
+                            if let Some(op) = options.first(){
                                     match op.as_str(){
                                         "view" => sendprint(&sender, format!("Playing at {:.2}x speed", sink.speed())),
                                         "set" => {
@@ -307,7 +298,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                             }else{
                                                 sendprint(&sender, "Error: speed should be set to a number".to_string());
                                             }
-                                            let speed: f32 = sink.speed() as f32;
+                                            let speed: f32 = sink.speed();
                                             sendprint(&sender, format!("Now at {:.2}x speed", speed));
                                         },
                                         "down" | "Down" => {
@@ -329,8 +320,6 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                         }
                                         x => sendprint(&sender, format!("Cannot find speed {}", x)),
                                     }
-                                },
-                                None => ()
                             }
                         }
                     }

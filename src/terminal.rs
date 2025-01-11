@@ -33,7 +33,7 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
         while let Some(response) = rxx.recv().await {
             match response {
                 Some(s) => {
-                    if !s.is_empty() && s != (String::from("  ")){
+                    if !s.is_empty() && s == *"  "{
                         for i in s.split("\n"){
                             println!();
                             stdout().execute(cursor::SavePosition).unwrap();
@@ -93,9 +93,8 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
                     if let Err(e) = tx.try_send(cmd_copy){
                         println!("Failed to send command: {}", e);
                     }
-                    match cmd {
-                        AudioCommand::Exit=> break,
-                        _ => ()
+                    if let AudioCommand::Exit = cmd{
+                        break
                     }
                 }
             }
