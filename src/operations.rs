@@ -190,7 +190,7 @@ impl Handler{
         }     
     }
     pub fn back_handle(&mut self, sink : &Sink)-> String{
-        if self.stack.is_empty(){
+        if !self.stack.is_empty(){
             let mut new_queue: Vec<String> = Vec::new();
             let mut curque :Vec<String> = self.queue.clone();
             let nextsong = self.stack.pop().unwrap();
