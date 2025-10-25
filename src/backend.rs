@@ -26,6 +26,7 @@ pub enum AudioCommand {
     SetSpeed(Vec<String>),
     Help,
     Exit,
+    Unrecognized(String),
 }
 impl fmt::Display for AudioCommand{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -342,6 +343,9 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                         sendprint(&sender, "mute -> mute music".to_string());
                         sendprint(&sender, "unmute -> unmute music".to_string());
                         sendprint(&sender, "help -> Display help menu".to_string());
+                    }
+                    AudioCommand::Unrecognized(unrecognized) => {
+                        sendprint(&sender, format!("Could not recognize command {}.", unrecognized));
                     }
                 }
             }

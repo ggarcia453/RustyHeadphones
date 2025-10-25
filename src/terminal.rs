@@ -14,9 +14,14 @@ use crossterm::{
     ExecutableCommand,
 };
 
-pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
-    let path :String = defpath;
-    let pptath = path.clone();
+pub async fn terminal_main(default_path:String) -> Result<(), ReadlineError>{
+    let main_path: String;
+    if !default_path.ends_with("\\") {
+        main_path = default_path + "\\";
+    } else {
+        main_path = default_path
+    }
+    let main_path_clone = main_path.clone();
     let (tx, rx) : (Sender<AudioCommand>, Receiver<AudioCommand>) = mpsc::channel(32);
     let (txx,mut rxx):(Sender<Option<String>>, Receiver<Option<String>>) = mpsc::channel(32);
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -26,24 +31,27 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
         let stream_handle = stream_handle.clone();
         let sink = sink.clone();
         async move {
-            player_thread(rx, txx, stream_handle, sink, pptath).await;
+            player_thread(rx, txx, stream_handle, sink, main_path_clone).await;
         }
     });
     let printer_task = tokio::spawn(async move {
         while let Some(response) = rxx.recv().await {
             match response {
                 Some(s) => {
-                    if !s.is_empty() && s == *"  "{
-                        for i in s.split("\n"){
+                    if !s.is_empty() && s != *"  "{
+                        let mut lines_iter = s.split('\n').enumerate().peekable();
+                        while let Some((_, message)) = lines_iter.next(){
                             println!();
                             stdout().execute(cursor::SavePosition).unwrap();
                             stdout()
                                 .queue(cursor::MoveUp(1)).unwrap()
                                 .queue(Clear(ClearType::CurrentLine)).unwrap();
-                            println!("{}", i);
+                            println!("{}", message);
                             stdout().execute(cursor::RestorePosition).unwrap();
                         }
-                        print!(">>");
+                        if lines_iter.peek().is_none(){
+                            print!(">>");
+                        }
                         stdout().flush().unwrap();
                     }
                 },
@@ -57,7 +65,7 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
         .completion_type(CompletionType::List)
         .build();
     
-    let h = helpers::HeadphoneHelper::new(path);
+    let h = helpers::HeadphoneHelper::new(main_path);
     let mut rl = Editor::with_config(config)?;
     rl.set_helper(Some(h));
     let _ =  rl.load_history("history.txt");
@@ -67,7 +75,7 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                let command = line.trim().to_string();
+                let command = line.trim().to_string().to_lowercase();
                 let tx = tx.clone();
                 let cmd = match command.split_once(' ').unwrap_or((&command, "")) {
                     ("exit", _) => Some(AudioCommand::Exit),
@@ -85,7 +93,7 @@ pub async fn terminal_main(defpath:String) -> Result<(), ReadlineError>{
                     ("unmute", _) => Some(AudioCommand::Unmute),
                     ("help", _) => Some(AudioCommand::Help),
                     ("speed", arg) => Some(AudioCommand::SetSpeed(arg.split_whitespace().map(|e| e.to_owned()).collect())),
-                    _ => None,
+                    (other_string, _) => Some(AudioCommand::Unrecognized(other_string.to_owned())),
                 };
                 if let Some(cmd) = cmd{
                     let tx = tx.clone();
