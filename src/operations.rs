@@ -200,6 +200,9 @@ impl Handler{
                 self.cur_song = None;
             }
             new_queue.append(&mut curque);
+            if self.islooping == Loop::Queue {
+                new_queue.pop();
+            }
             self.queue.clear();
             self.queue.append(&mut new_queue);
             sink.skip_one();

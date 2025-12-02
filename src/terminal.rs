@@ -76,6 +76,7 @@ pub async fn terminal_main(default_path:String) -> Result<(), ReadlineError>{
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
                 let command = line.trim().to_string().to_lowercase();
+                if command.is_empty() {continue};
                 let tx = tx.clone();
                 let cmd = match command.split_once(' ').unwrap_or((&command, "")) {
                     ("exit", _) => Some(AudioCommand::Exit),
