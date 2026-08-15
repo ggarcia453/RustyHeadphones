@@ -108,6 +108,7 @@ pub async fn player_thread(mut receiver: Receiver<AudioCommand>, sender: Sender<
                                     let s = handler.cur_song.clone().unwrap();
                                     handler.queue.push(s);
                                 }
+                                handler.replenish_queue_from_stack();
                                 if !handler.queue.is_empty(){
                                     let nextsong = handler.queue.first().unwrap().to_owned();
                                     match play_song(&nextsong, &sink){
@@ -413,6 +414,18 @@ mod tests{
         cmd_tx.send(AudioCommand::Unmute).await.unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;
         assert!(sink.lock().unwrap().volume() > 0.0);
+    }
+
+    #[test]
+    fn loop_queue_reuses_stack_when_queue_is_empty() {
+        let mut handler = operations::Handler::new(String::new());
+        handler.stack.push("song_a".to_string());
+        handler.stack.push("song_b".to_string());
+
+        handler.replenish_queue_from_stack();
+
+        assert_eq!(handler.queue, vec!["song_a".to_string(), "song_b".to_string()]);
+        assert!(handler.stack.is_empty());
     }
 
 }

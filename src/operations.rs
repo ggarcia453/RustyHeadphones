@@ -189,6 +189,12 @@ impl Handler{
             }
         }     
     }
+    pub fn replenish_queue_from_stack(&mut self) {
+        if self.queue.is_empty() && !self.stack.is_empty() {
+            self.queue = std::mem::take(&mut self.stack);
+        }
+    }
+
     pub fn back_handle(&mut self, sink : &Sink)-> String{
         if !self.stack.is_empty(){
             let mut new_queue: Vec<String> = Vec::new();
@@ -213,10 +219,6 @@ impl Handler{
         }
     }
     pub fn skip_handle(& mut self, sink : &Sink)->String{
-        if self.islooping == Loop::Queue{
-            let current:String = self.cur_song.as_ref().unwrap().clone();
-            self.queue.push(current);
-        }
         if self.cur_song.is_some(){
             self.stack.push(self.cur_song.as_ref().unwrap().to_owned());
             self.cur_song = None; 
@@ -420,12 +422,19 @@ mod tests{
     let mut test_handler = Handler::new(String::from(TEST_DIR));
     let (sink, _ )= rodio::Sink::new_idle();
     test_handler.loop_handle("queue");
-    assert!(test_handler.queue_handle(String::from("TestFolder\\")).is_ok());
-    test_handler.cur_song = test_handler.queue.get(0).cloned();
-    assert!(test_handler.cur_song.is_some());
-    assert_eq!(3, test_handler.queue.len());
-    test_handler.skip_handle(&sink);
-    assert_eq!(4, test_handler.queue.len());
+
+    test_handler.cur_song = Some("song_a".to_string());
+    test_handler.stack.push("song_b".to_string());
+    test_handler.stack.push("song_c".to_string());
+    test_handler.queue.clear();
+
+    test_handler.replenish_queue_from_stack();
+
+    assert_eq!(2, test_handler.queue.len());
+    assert!(test_handler.stack.is_empty());
+    assert_eq!(Some("song_b".to_string()), test_handler.queue.first().cloned());
+
+    assert_eq!("Skipped", test_handler.skip_handle(&sink));
     assert!(test_handler.cur_song.is_none());
    }
 
